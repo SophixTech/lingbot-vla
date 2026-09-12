@@ -33,6 +33,7 @@ from .websocket_policy_server import WebsocketPolicyServer
 from lingbotvla.models.vla.pi0.modeling_lingbot_vla import LingbotVlaPolicy
 from lingbotvla.data.vla_data.utils import FeatureTransform
 from lingbotvla.models import build_processor
+from lingbotvla.utils.lora_utils import add_lora_to_model
 
 def set_seed_everywhere(seed: int):
     """Sets the random seed for Python, NumPy, and PyTorch functions."""
@@ -52,11 +53,15 @@ class PolicyPreprocessMixin:
         self, observation: dict[str, Tensor], use_bf16: bool = False, noise: Tensor | None = None, num_denoising_step : int = 10
     ):
         self.eval()
-        device = 'cuda'
-        if use_bf16:
-            dtype = torch.bfloat16
-        else:
-            dtype = torch.float32
+        # Infer the device from the loaded policy instead of hard-coding CUDA.
+        # This preserves the normal GPU path while enabling a deliberately
+        # low-priority CPU-only open-loop evaluation during active training.
+        first_parameter = next(self.parameters())
+        device = first_parameter.device
+        # Checkpoints retain their stored dtype.  Match it exactly so CPU-only
+        # evaluation and the regular CUDA path cannot feed float32 activations
+        # into bfloat16 weights (or the inverse).
+        dtype = getattr(self, "inference_dtype", first_parameter.dtype)
         s1 = time.time()
         
         if len(observation['images'].shape) == 4:
@@ -130,7 +135,8 @@ class LingbotVLAServer:
         use_fp32=False,
         robot_norm_path: str = None,
         num_denoising_step=10,
-        use_compile=False
+        use_compile=False,
+        device: str = "cuda",
     ) -> None:
         assert not (use_bf16 and use_fp32), 'Bfloat16 or Float32!!!'
         self.adaptive_ensemble_alpha = adaptive_ensemble_alpha
@@ -138,6 +144,9 @@ class LingbotVLAServer:
         self.use_length = use_length
         self.use_compile = use_compile
         self.num_denoising_step = num_denoising_step
+        self.device = torch.device(device)
+        if self.device.type == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError("CUDA was requested for inference but is unavailable")
 
         self.robot_norm_path = robot_norm_path
         
@@ -147,6 +156,13 @@ class LingbotVLAServer:
             self.vla = self.vla.to(torch.bfloat16)
         elif use_fp32:
             self.vla.model.float()
+        elif self.device.type == "cpu":
+            # CPU inference must not mix the checkpoint's bfloat16 backbone
+            # with float32 action-expert embeddings. This conversion is local
+            # to the evaluator process and leaves both the checkpoint and the
+            # active GPU training model untouched.
+            self.vla = self.vla.float()
+            self.vla.inference_dtype = torch.float32
         self.global_step = 0
         self.last_action_chunk = None
         self.use_bf16 = use_bf16
@@ -193,6 +209,21 @@ class LingbotVLAServer:
         print('Initializing model ... ')
         policy = LingBotVlaInferencePolicy(config, tokenizer_path=base_model_path)
 
+        # LoRA checkpoints retain PEFT's ``base_layer`` and adapter keys.  The
+        # training entry point injects those modules before loading weights;
+        # inference must construct the same module layout before strict load.
+        if training_config['train'].get('use_lora', False):
+            policy = add_lora_to_model(
+                policy,
+                lora_rank=training_config['train']['lora_rank'],
+                lora_alpha=training_config['train']['lora_alpha'],
+                lora_target_modules=training_config['train']['lora_target_modules'],
+                lora_target_modules_support={
+                    'q_proj', 'k_proj', 'v_proj', 'o_proj',
+                    'gate_proj', 'up_proj', 'down_proj',
+                },
+            )
+
         all_safetensors = glob(os.path.join(path_to_pi_model, "*.safetensors"))
         merged_weights = {}
 
@@ -201,7 +232,14 @@ class LingbotVLAServer:
                 for key in f.keys():
                     merged_weights[key] = f.get_tensor(key)
         policy.load_state_dict(merged_weights, strict=True)
-        policy.cuda()
+        policy.to(self.device)
+        # LoRA adapter parameters can stay float32 while the Qwen backbone is
+        # bfloat16. Inputs to sample_actions must follow the backbone, not the
+        # first adapter parameter encountered by Module.parameters().
+        q_proj = policy.model.qwenvl_with_expert.qwenvl.model.layers[0].self_attn.q_proj
+        q_proj_weight = getattr(q_proj, "base_layer", q_proj).weight
+        policy.inference_dtype = q_proj_weight.dtype
+        print(f"Inference backbone dtype: {policy.inference_dtype}")
         
         if self.use_compile:
             policy.model.qwenvl_with_expert = torch.compile(policy.model.qwenvl_with_expert)

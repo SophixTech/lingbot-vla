@@ -89,7 +89,10 @@ def build_foundation_model(
     config.freeze_vision_encoder = freeze_vision_encoder
     config.tokenizer_max_length = tokenizer_max_length
     config.use_cache = False # drop kv cache during training
-    config.attention_implementation = 'flex'
+    # The local one-GPU environment does not provide FlashAttention and its
+    # Inductor-backed flex path is unstable with the installed Torch/Python.
+    # Use the framework's eager attention implementation for post-training.
+    config.attention_implementation = 'eager'
     config.action_dim = config_kwargs['action_dim']
     config.max_action_dim = config_kwargs['max_action_dim']
     config.max_state_dim = config_kwargs['max_state_dim']

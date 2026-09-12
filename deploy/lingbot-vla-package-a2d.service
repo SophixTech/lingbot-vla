@@ -1,0 +1,14 @@
+[Unit]
+Description=LingBot-VLA package A2D LoRA fine-tuning
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/bjtc/Sophix/lingbot-vla
+ExecStart=/home/bjtc/Sophix/lingbot-vla/scripts/run_package_a2d_training.sh
+Restart=no
+TimeoutStartSec=infinity
+TimeoutStopSec=5min
+
+[Install]
+WantedBy=default.target

@@ -232,6 +232,13 @@ class Qwen2_5_VLVisionFlashAttention2(nn.Module):
         return attn_output
 
 
+def rotate_half(x: torch.Tensor) -> torch.Tensor:
+    """Rotate paired RoPE channels by 90 degrees."""
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2 :]
+    return torch.cat((-x2, x1), dim=-1)
+
+
 def apply_rotary_pos_emb_vision(
     q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor
 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -1322,7 +1329,10 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
 
     def __init__(self, config, **kwargs):
         super().__init__(config)
-        self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(config.vision_config, use_flash_attention_2=True)
+        self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(
+            config.vision_config,
+            use_flash_attention_2=config._attn_implementation == "flash_attention_2",
+        )
         self.model = Qwen2_5_VLModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)

@@ -1,0 +1,6 @@
+[Unit]
+Description=Export current LingBot-VLA package A2D loss curve
+
+[Service]
+Type=oneshot
+ExecStart=/home/bjtc/Sophix/lingbot-vla/deploy/package_a2d_curve_export.sh

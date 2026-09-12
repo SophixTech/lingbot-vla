@@ -1,6 +1,7 @@
 import logging
 from pathlib import Path
 import argparse
+import csv
 import os
 
 import numpy as np
@@ -109,12 +110,24 @@ def evaluate_single_trajectory(
         traj = dataset[data_id]
         count += 1
 
+        # The raw dataset action can contain joints that this policy does not
+        # control.  Extract the same configured action slices used by the
+        # feature transform before comparing them with model predictions.
+        target_traj = policy.vla.feature_transform.convert_features(traj.copy())
+        gt_action = np.concatenate(
+            [
+                target_traj[action_feature][:action_horizon].cpu().numpy()
+                for action_feature in policy.vla.feature_transform.actions
+            ],
+            axis=-1,
+        )
+
         for image_key in policy.vla.feature_transform.org_features['images']:
             image = (traj[image_key]* 255).to(torch.uint8).permute(1, 2, 0).cpu().numpy()
             traj[image_key] = image
         preds = policy.infer(traj)
 
-        gt_action_across_time += [np.concatenate([traj[action_feature][:action_horizon] for action_feature in policy.vla.feature_transform.org_features['actions']], axis=-1)]
+        gt_action_across_time += [gt_action]
         state_joints_across_time += [np.concatenate([traj[state_feature] for state_feature in policy.vla.feature_transform.org_features['states']], axis=-1)]
         pred_action_across_time += [np.concatenate([preds[action_feature] for action_feature in policy.vla.feature_transform.org_features['actions']], axis=-1)]
         
@@ -149,12 +162,18 @@ def evaluate_single_trajectory(
         save_plot_path=save_plot_path or f"/tmp/open_loop_eval/traj_{traj_id}.jpeg",
     )
 
+    np.savez_compressed(
+        Path(save_plot_path).with_suffix(".npz"),
+        gt_actions=gt_action_across_time,
+        predicted_actions=pred_action_across_time,
+    )
+
     return mse, mae
 
 
 
 
-def main(policy, robo_name, data_root, traj_ids, chunk_size, save_plot_path):
+def main(policy, robo_name, data_root, traj_ids, chunk_size, save_plot_path, max_infer_time, metrics_path=None):
 
     policy.data_config.num_episode = None
     policy.data_config.chunk_size = policy.config.chunk_size
@@ -179,6 +198,7 @@ def main(policy, robo_name, data_root, traj_ids, chunk_size, save_plot_path):
 
     all_mse = []
     all_mae = []
+    episode_metrics = []
 
     for traj_id in traj_ids:
         if traj_id not in dataset.meta.episodes['episode_index']:
@@ -192,10 +212,19 @@ def main(policy, robo_name, data_root, traj_ids, chunk_size, save_plot_path):
             traj_id,
             save_plot_path=os.path.join(save_plot_path,f'{traj_id}.png'),
             action_horizon=chunk_size,
+            max_infer_time=max_infer_time,
         )
         print(f"MSE for trajectory {traj_id}: {mse}, MAE: {mae}")
         all_mse.append(mse)
         all_mae.append(mae)
+        episode_metrics.append({"episode_index": traj_id, "mse": mse, "mae": mae})
+
+    if metrics_path:
+        Path(metrics_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(metrics_path, "w", newline="") as metrics_file:
+            writer = csv.DictWriter(metrics_file, fieldnames=["episode_index", "mse", "mae"], delimiter="\t")
+            writer.writeheader()
+            writer.writerows(episode_metrics)
 
     if all_mse:
         avg_mse = np.mean(np.array(all_mse))
@@ -222,6 +251,9 @@ if __name__ == "__main__":
     parser.add_argument('--use_length',  type=int, default=50, help='use length of action chunk')
     parser.add_argument("--num_denoising_step", type=int, default=10, help="num of denoising step")
     parser.add_argument("--use_compile", action='store_true', help="use torch compile or not")
+    parser.add_argument("--device", choices=["cuda", "cpu"], default="cuda", help="inference device")
+    parser.add_argument("--max-infer-time", type=int, default=10, help="action chunks evaluated per trajectory")
+    parser.add_argument("--metrics-path", type=str, default=None, help="optional per-episode TSV output path")
 
     parser.add_argument('--save_plot_path', type=str, default='./open_loop_test/')
     args = parser.parse_args()
@@ -233,12 +265,24 @@ if __name__ == "__main__":
                 path_to_pi_model=args.model_path,
                 robot_norm_path=args.norm_path,
                 use_length=args.use_length,
-                use_bf16=True,
+                # CPU kernels are more broadly supported and less memory
+                # fragile in float32; CUDA retains the normal bfloat16 path.
+                use_bf16=args.device == "cuda",
                 num_denoising_step=args.num_denoising_step,
-                use_compile=args.use_compile
+                use_compile=args.use_compile,
+                device=args.device,
             )
     robo_name = args.robo_name if args.robo_name is not None else model.data_config.data_name
     data_path = args.data_path if args.data_path is not None else model.data_config.train_path
     
     model.reset(robo_name)
-    main(model, robo_name, data_path, traj_ids, args.use_length, args.save_plot_path)
+    main(
+        model,
+        robo_name,
+        data_path,
+        traj_ids,
+        args.use_length,
+        args.save_plot_path,
+        args.max_infer_time,
+        args.metrics_path,
+    )

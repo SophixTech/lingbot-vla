@@ -1,0 +1,11 @@
+[Unit]
+Description=Poll for package A2D training safety faults
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=30s
+Persistent=false
+Unit=lingbot-vla-package-a2d-guard.service
+
+[Install]
+WantedBy=timers.target

@@ -140,10 +140,15 @@ class VLADataset(Dataset):
         self.action_features = self.feature_transform.actions
         self.state_features = self.feature_transform.states
         self.image_features = self.feature_transform.images
+
+        episodes = None
+        if data_config.train_episode_start is not None:
+            episodes = list(range(data_config.train_episode_start, data_config.train_episode_end))
         
         self.dataset_meta = LeRobotDatasetMetadata(repo_id)
         self.dataset = LeRobotDataset(
             repo_id=repo_id,
+            episodes=episodes,
             image_transforms=Resize(image_size),
             delta_timestamps=self.get_delta_timestamps(),
             load_image=load_image

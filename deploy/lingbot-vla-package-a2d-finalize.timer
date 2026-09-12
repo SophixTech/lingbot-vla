@@ -1,0 +1,11 @@
+[Unit]
+Description=Detect package A2D training completion
+
+[Timer]
+OnBootSec=10min
+OnUnitActiveSec=10min
+Persistent=false
+Unit=lingbot-vla-package-a2d-finalize.service
+
+[Install]
+WantedBy=timers.target

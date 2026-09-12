@@ -1,0 +1,53 @@
+# Single RTX 4090 LoRA run for the A2D soft-package placement task.
+model:
+  model_path: /home/bjtc/Sophix/models/lingbot-vla-4b
+  tokenizer_path: /home/bjtc/Sophix/models/Qwen2.5-VL-3B-Instruct-tokenizer
+
+data:
+  datasets_type: vla
+  data_name: package_a2d
+  train_path: /home/bjtc/Sophix/datasets/a2d_bag_record_v3
+  joints:
+    - arm.position: 14
+    - effector.position: 2
+  cameras:
+    - camera_top
+    - camera_wrist_left
+    - camera_wrist_right
+  num_workers: 0
+  norm_type: bounds_99
+  norm_stats_file: /home/bjtc/Sophix/datasets/a2d_bag_record_v3/norm_stats_package_a2d.json
+  train_episode_start: 0
+  train_episode_end: 2204
+
+train:
+  output_dir: /home/bjtc/Sophix/lingbot-vla/output/package_a2d_lora_4090
+  loss_type: L1_fm
+  data_parallel_mode: ddp
+  use_compile: false
+  rmpad: false
+  rmpad_with_pos_ids: false
+  freeze_vision_encoder: true
+  enable_gradient_checkpointing: true
+  enable_mixed_precision: false
+  enable_fp32: false
+  tokenizer_max_length: 72
+  max_action_dim: 75
+  max_state_dim: 75
+  lr: 1.0e-4
+  lr_decay_style: constant
+  micro_batch_size: 1
+  gradient_accumulation_steps: 16
+  # The 8,000-step checkpoint remains a formal evaluation point. Continue to
+  # 9,000 only because the fixed holdout protocol has not met early stopping.
+  max_steps: 10000
+  ckpt_manager: dcp
+  save_steps: 1000
+  save_epochs: 0
+  save_hf_weights: true
+  # Continue from the newest complete checkpoint after a supervised restart.
+  enable_resume: true
+  use_lora: true
+  lora_rank: 8
+  lora_alpha: 16
+  lora_target_modules: q_proj,k_proj,v_proj,o_proj

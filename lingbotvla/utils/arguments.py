@@ -224,8 +224,20 @@ class DataArguments:
         default=None,
         metadata={"help": "Path to the normalization stats file."},
     )
+    train_episode_start: Optional[int] = field(
+        default=None,
+        metadata={"help": "First inclusive LeRobot episode index to use for training. None uses every episode."},
+    )
+    train_episode_end: Optional[int] = field(
+        default=None,
+        metadata={"help": "First exclusive LeRobot episode index to use for training. None uses every episode."},
+    )
 
     def __post_init__(self):
+        if (self.train_episode_start is None) != (self.train_episode_end is None):
+            raise ValueError("`train_episode_start` and `train_episode_end` must be set together.")
+        if self.train_episode_start is not None and self.train_episode_end <= self.train_episode_start:
+            raise ValueError("`train_episode_end` must be greater than `train_episode_start`.")
         if self.text_keys is None:
             if self.data_type == "plaintext":
                 self.text_keys = "content_split"
@@ -495,6 +507,22 @@ class TrainingArguments:
         default=False,
         metadata={"help": "Whether or not to freeze the vision encoder in VLA model."},
     )
+    use_lora: bool = field(
+        default=False,
+        metadata={"help": "Inject LoRA adapters and train only adapter parameters."},
+    )
+    lora_rank: int = field(
+        default=8,
+        metadata={"help": "LoRA adapter rank."},
+    )
+    lora_alpha: int = field(
+        default=16,
+        metadata={"help": "LoRA scaling alpha."},
+    )
+    lora_target_modules: str = field(
+        default="q_proj,k_proj,v_proj,o_proj",
+        metadata={"help": "Comma-separated linear-module suffixes to adapt with LoRA."},
+    )
     tokenizer_max_length: int = field(
         default=48,
         metadata={"help": "Maximum length of the tokenizer."},
@@ -679,6 +707,11 @@ class TrainingArguments:
             self._train_steps = self.max_steps
         else:
             raise ValueError("Please provide `dataset_length` or `max_steps`!")
+
+        # A dataset-derived epoch length must not silently override an
+        # explicitly requested training cap.
+        if self.max_steps is not None:
+            self._train_steps = min(self._train_steps, self.max_steps)
 
     @property
     def train_steps(self) -> int:
