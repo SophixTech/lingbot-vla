@@ -1,6 +1,13 @@
 #!/bin/bash
 
+set -euo pipefail
 set -x
+
+# This repository is run from its project-local virtual environment.  A
+# systemd --user service does not inherit the interactive shell's PATH, so put
+# the local torchrun ahead of system tools explicitly.
+REPO_DIR=$(cd "$(dirname "$0")" && pwd)
+export PATH="$REPO_DIR/.venv/bin:$PATH"
 
 export TOKENIZERS_PARALLELISM=false
 if [ -z "$CUDA_VISIBLE_DEVICES" ]; then

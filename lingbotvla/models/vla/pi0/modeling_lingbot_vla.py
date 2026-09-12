@@ -1097,13 +1097,13 @@ class QwenvlWithExpertModel(PreTrainedModel):
         if self.config.vocab_size != 0 and self.config.vocab_size != 257152 and vlm_config.vocab_size != self.config.vocab_size:
             vlm_config.vocab_size = self.config.vocab_size
         
-        vlm_config._attn_implementation = 'flash_attention_2'
-        self.qwenvl = Qwen2_5_VLForConditionalGeneration._from_config(vlm_config, use_flash_attention_2=True)
+        vlm_config._attn_implementation = 'eager'
+        self.qwenvl = Qwen2_5_VLForConditionalGeneration._from_config(vlm_config, use_flash_attention_2=False)
         if self.config.use_lm_head:
             self.qwenvl.tie_weights()
         self.config.qwen_expert_config.norm_qkv = self.config.norm_qkv
-        self.config.qwen_expert_config._attn_implementation = 'flash_attention_2'
-        self.qwen_expert = Qwen2ForCausalLM._from_config(self.config.qwen_expert_config, use_flash_attention_2=True, eval=eval)
+        self.config.qwen_expert_config._attn_implementation = 'eager'
+        self.qwen_expert = Qwen2ForCausalLM._from_config(self.config.qwen_expert_config, use_flash_attention_2=False, eval=eval)
 
         self.rotary_pos_emb = None
         self.window_index = None
@@ -1616,7 +1616,12 @@ class FlowMatching(nn.Module):
     def embed_suffix(self, state, noisy_actions, timestep):
         bsize = state.shape[0] # state_bs = img_bs
         device = state.device
-        dtype = state.dtype
+        # Dataset normalization intentionally stays float32.  The frozen
+        # LingBot backbone is bfloat16 in the memory-constrained single-GPU
+        # setup, so align continuous inputs with their projection weights.
+        dtype = self.state_proj.weight.dtype
+        state = state.to(dtype=dtype)
+        noisy_actions = noisy_actions.to(dtype=self.action_in_proj.weight.dtype)
         # embed state
         state_emb = self.state_proj(state) # torch.Size([state_bs, 1024])
 

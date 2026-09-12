@@ -61,7 +61,11 @@ def main():
     
     chunk_size = args.train.chunk_size
 
-    compute_norm(dataset, args.data.train_path, args.train.micro_batch_size, args.data.num_workers, stats, state_norm_keys, acton_norm_keys, delta_norm)
+    # Norm computation uses state/action only (no image decoding), so it can
+    # safely batch many samples even when training itself must use batch size 1.
+    norm_batch_size = max(args.train.micro_batch_size, 4096)
+    logger.info_rank0(f"Computing normalization with batch_size={norm_batch_size}")
+    compute_norm(dataset, args.data.train_path, norm_batch_size, args.data.num_workers, stats, state_norm_keys, acton_norm_keys, delta_norm)
         
     norm_stats = {key: stats.get_statistics() for key, stats in stats.items()}
     norm_stats = {}

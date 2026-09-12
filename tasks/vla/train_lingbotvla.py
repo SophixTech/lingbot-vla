@@ -29,6 +29,7 @@ from lingbotvla.optim import build_lr_scheduler, build_optimizer
 from lingbotvla.utils import helper
 from lingbotvla.utils.arguments import DataArguments, ModelArguments, TrainingArguments, parse_args, save_args
 from lingbotvla.utils.dist_utils import all_reduce
+from lingbotvla.utils.lora_utils import add_lora_to_model, freeze_parameters
 
 from lingbotvla.models.vla.vision_models.module_utils import build_depth_model, get_depth_target, log_depth
 
@@ -100,6 +101,24 @@ def main():
         force_use_huggingface=args.model.force_use_huggingface,
         config_kwargs=config_kwargs,
     )
+    if args.train.use_lora:
+        supported_lora_modules = {"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"}
+        freeze_parameters(model)
+        model = add_lora_to_model(
+            model,
+            lora_rank=args.train.lora_rank,
+            lora_alpha=args.train.lora_alpha,
+            lora_target_modules=args.train.lora_target_modules,
+            lora_target_modules_support=supported_lora_modules,
+        )
+        trainable_params = sum(param.numel() for param in model.parameters() if param.requires_grad)
+        total_params = sum(param.numel() for param in model.parameters())
+        if trainable_params == 0:
+            raise RuntimeError("LoRA enabled but no trainable adapter parameters were injected.")
+        logger.info_rank0(
+            f"LoRA enabled: {trainable_params:,} / {total_params:,} trainable parameters "
+            f"({100 * trainable_params / total_params:.4f}%)."
+        )
     use_depth_align = True if args.train.align_params != {} else False
     depth_model_type = None
     if use_depth_align:
@@ -194,6 +213,17 @@ def main():
         optimizer_type=args.train.optimizer,
         post_training=args.model.post_training,
     )
+    # Keep a stable list of the parameters owned by the optimizer.  Calling
+    # ``model.parameters()`` every step recursively walks the complete 4B
+    # module tree.  On this host that walk eventually segfaults in PyTorch
+    # (during gradient clipping), even though only the LoRA adapters are
+    # trainable.  Optimizer param groups are already materialized and contain
+    # exactly the parameters being updated, so use them for clipping too.
+    optimizer_params = [
+        parameter
+        for group in optimizer.param_groups
+        for parameter in group["params"]
+    ]
     total_train_steps = args.train.train_steps * args.train.num_train_epochs
     if args.train.max_steps is not None:
         total_train_steps = min(total_train_steps, args.train.max_steps)
@@ -381,7 +411,7 @@ def main():
             if args.train.data_parallel_mode == "fsdp1":
                 grad_norm = model.clip_grad_norm_(max_grad_norm).item()
             else:
-                grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, foreach=True)
+                grad_norm = torch.nn.utils.clip_grad_norm_(optimizer_params, max_grad_norm, foreach=False)
 
             optimizer.step()
             lr_scheduler.step()

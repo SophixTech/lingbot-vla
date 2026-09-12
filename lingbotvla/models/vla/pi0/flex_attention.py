@@ -28,10 +28,11 @@ if Version(torch.__version__) > Version("2.5.0"):
         flex_attention,
     )
 
-# more aggressive compile setting
-_flex_attention = torch.compile(
-    flex_attention,
-    mode="max-autotune-no-cudagraphs")
+# Import-time Inductor compilation is unstable with the host's Torch 2.8 /
+# Python 3.12 stack (it segfaults before model construction).  The training
+# configuration already disables torch.compile, so keep this helper eager as
+# well. Flex attention itself remains available if selected at runtime.
+_flex_attention = flex_attention
 
 def flex_attention_forward(
     query_states: torch.Tensor,
