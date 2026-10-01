@@ -224,3 +224,7 @@ eval.sh
 # Local scratch files
 /camera.txt
 /hal.txt
+
+# Repository-local Python and uv installations
+/.python/
+/.tools/

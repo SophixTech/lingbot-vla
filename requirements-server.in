@@ -1,0 +1,36 @@
+# Linux x86_64, CPython 3.10.12, CUDA 12.8 training profile.
+# LeRobot and the editable projects are installed separately with --no-deps:
+# their upstream metadata conflicts with this repository's training versions.
+-r requirements.txt
+# Explicit official wheels avoid routing unrelated packages to the PyTorch index.
+torch @ https://download.pytorch.org/whl/cu128/torch-2.8.0%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl
+torchvision @ https://download.pytorch.org/whl/cu128/torchvision-0.23.0%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl
+torchaudio @ https://download.pytorch.org/whl/cu128/torchaudio-2.8.0%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl
+torchdata==0.11.0
+blobfile==3.2.0
+accelerate==1.14.0
+peft==0.17.1
+diffusers==0.35.2
+wandb==0.21.4
+einops==0.8.0
+huggingface-hub==0.36.2
+av==15.1.0
+opencv-python==4.10.0.84
+scipy==1.14.1
+# The original environment has pandas 3.x, which requires Python >=3.11.
+pandas==2.3.3
+draccus==0.10.0
+gymnasium==1.1.1
+deepdiff==8.6.1
+jsonlines==4.0.0
+pyserial==3.5
+imageio[ffmpeg]==2.37.0
+termcolor==3.1.0
+pyyaml==6.0.2
+trimesh==4.7.4
+psutil==7.0.0
+setuptools==80.9.0
+wheel==0.45.1
+ninja==1.11.1.4
+utils3d @ git+https://github.com/EasternJournalist/utils3d.git@3fab839f0be9931dac7c8488eb0e1600c236e183
+pipeline @ git+https://github.com/EasternJournalist/pipeline.git@866f059d2a05cde05e4a52211ec5051fd5f276d6

@@ -1,0 +1,452 @@
+absl-py==2.5.0
+    # via tensorboard
+accelerate==1.14.0
+    # via
+    #   -r requirements-server.in
+    #   peft
+aiohappyeyeballs==2.7.1
+    # via aiohttp
+aiohttp==3.14.3
+    # via fsspec
+aiosignal==1.4.0
+    # via aiohttp
+annotated-types==0.8.0
+    # via pydantic
+asttokens==3.0.2
+    # via stack-data
+async-timeout==5.0.1
+    # via aiohttp
+attrs==26.1.0
+    # via
+    #   aiohttp
+    #   jsonlines
+av==15.1.0
+    # via -r requirements-server.in
+blobfile==3.2.0
+    # via -r requirements-server.in
+certifi==2026.7.22
+    # via
+    #   requests
+    #   sentry-sdk
+charset-normalizer==3.5.2
+    # via requests
+click==8.5.0
+    # via wandb
+cloudpickle==3.1.2
+    # via gymnasium
+contourpy==1.3.2
+    # via matplotlib
+cycler==0.12.1
+    # via matplotlib
+datasets==3.6.0
+    # via -r requirements.txt
+decorator==5.3.1
+    # via
+    #   ipdb
+    #   ipython
+deepdiff==8.6.1
+    # via -r requirements-server.in
+diffusers==0.35.2
+    # via -r requirements-server.in
+dill==0.3.8
+    # via
+    #   datasets
+    #   multiprocess
+draccus==0.10.0
+    # via -r requirements-server.in
+einops==0.8.0
+    # via -r requirements-server.in
+exceptiongroup==1.3.1
+    # via
+    #   ipython
+    #   pytest
+executing==2.2.1
+    # via stack-data
+farama-notifications==0.0.6
+    # via gymnasium
+filelock==4.0.8
+    # via
+    #   blobfile
+    #   datasets
+    #   diffusers
+    #   huggingface-hub
+    #   torch
+    #   transformers
+fonttools==4.65.0
+    # via matplotlib
+frozenlist==1.8.0
+    # via
+    #   aiohttp
+    #   aiosignal
+fsspec==2025.3.0
+    # via
+    #   datasets
+    #   huggingface-hub
+    #   torch
+gitdb==4.0.12
+    # via gitpython
+gitpython==3.2.0
+    # via wandb
+glcontext==3.0.0
+    # via moderngl
+grpcio==1.84.0
+    # via tensorboard
+gymnasium==1.1.1
+    # via -r requirements-server.in
+hf-xet==1.6.0
+    # via huggingface-hub
+huggingface-hub==0.36.2
+    # via
+    #   -r requirements-server.in
+    #   accelerate
+    #   datasets
+    #   diffusers
+    #   peft
+    #   tokenizers
+    #   transformers
+idna==3.20
+    # via
+    #   requests
+    #   yarl
+imageio==2.37.0
+    # via -r requirements-server.in
+imageio-ffmpeg==0.6.0
+    # via imageio
+importlib-metadata==9.0.1
+    # via diffusers
+iniconfig==2.3.0
+    # via pytest
+ipdb==0.13.13
+    # via -r requirements.txt
+ipython==8.39.0
+    # via ipdb
+jedi==0.20.0
+    # via ipython
+jinja2==3.1.6
+    # via torch
+jsonlines==4.0.0
+    # via -r requirements-server.in
+kiwisolver==1.5.1
+    # via matplotlib
+lxml==6.1.3
+    # via blobfile
+markdown==3.10.3
+    # via tensorboard
+markupsafe==3.0.3
+    # via
+    #   jinja2
+    #   werkzeug
+matplotlib==3.10.9
+    # via
+    #   -r requirements.txt
+    #   utils3d
+matplotlib-inline==0.2.2
+    # via ipython
+mergedeep==1.3.4
+    # via draccus
+moderngl==5.12.0
+    # via utils3d
+mpmath==1.3.0
+    # via sympy
+msgpack==1.2.3
+    # via -r requirements.txt
+multidict==6.9.1
+    # via
+    #   aiohttp
+    #   yarl
+multiprocess==0.70.16
+    # via datasets
+mypy-extensions==1.1.0
+    # via typing-inspect
+networkx==3.4.2
+    # via torch
+ninja==1.11.1.4
+    # via -r requirements-server.in
+numpy==1.26.4
+    # via
+    #   -r requirements.txt
+    #   accelerate
+    #   contourpy
+    #   datasets
+    #   diffusers
+    #   gymnasium
+    #   imageio
+    #   matplotlib
+    #   numpydantic
+    #   opencv-python
+    #   pandas
+    #   peft
+    #   scipy
+    #   tensorboard
+    #   torchvision
+    #   transformers
+    #   trimesh
+    #   utils3d
+numpydantic==1.8.1
+    # via -r requirements.txt
+nvidia-cublas-cu12==12.8.4.1
+    # via
+    #   nvidia-cudnn-cu12
+    #   nvidia-cusolver-cu12
+    #   torch
+nvidia-cuda-cupti-cu12==12.8.90
+    # via torch
+nvidia-cuda-nvrtc-cu12==12.8.93
+    # via torch
+nvidia-cuda-runtime-cu12==12.8.90
+    # via torch
+nvidia-cudnn-cu12==9.10.2.21
+    # via torch
+nvidia-cufft-cu12==11.3.3.83
+    # via torch
+nvidia-cufile-cu12==1.13.1.3
+    # via torch
+nvidia-curand-cu12==10.3.9.90
+    # via torch
+nvidia-cusolver-cu12==11.7.3.90
+    # via torch
+nvidia-cusparse-cu12==12.5.8.93
+    # via
+    #   nvidia-cusolver-cu12
+    #   torch
+nvidia-cusparselt-cu12==0.7.1
+    # via torch
+nvidia-nccl-cu12==2.27.3
+    # via torch
+nvidia-nvjitlink-cu12==12.8.93
+    # via
+    #   nvidia-cufft-cu12
+    #   nvidia-cusolver-cu12
+    #   nvidia-cusparse-cu12
+    #   torch
+nvidia-nvtx-cu12==12.8.90
+    # via torch
+opencv-python==4.10.0.84
+    # via -r requirements-server.in
+orderly-set==5.5.0
+    # via deepdiff
+packaging==26.3
+    # via
+    #   accelerate
+    #   datasets
+    #   huggingface-hub
+    #   matplotlib
+    #   peft
+    #   pytest
+    #   transformers
+    #   wandb
+pandas==2.3.3
+    # via
+    #   -r requirements-server.in
+    #   datasets
+parso==0.8.7
+    # via jedi
+peft==0.17.1
+    # via -r requirements-server.in
+pexpect==4.9.0
+    # via ipython
+pillow==12.3.0
+    # via
+    #   diffusers
+    #   imageio
+    #   matplotlib
+    #   torchvision
+pipeline @ git+https://github.com/EasternJournalist/pipeline.git@866f059d2a05cde05e4a52211ec5051fd5f276d6
+    # via -r requirements-server.in
+platformdirs==4.12.2
+    # via wandb
+pluggy==1.6.0
+    # via pytest
+prompt-toolkit==3.0.53
+    # via ipython
+propcache==0.5.4
+    # via
+    #   aiohttp
+    #   yarl
+protobuf==6.33.6
+    # via
+    #   tensorboard
+    #   wandb
+psutil==7.0.0
+    # via
+    #   -r requirements-server.in
+    #   accelerate
+    #   imageio
+    #   peft
+ptyprocess==0.7.0
+    # via pexpect
+pure-eval==0.2.4
+    # via stack-data
+pyarrow==25.0.1
+    # via datasets
+pycryptodomex==3.23.0
+    # via blobfile
+pydantic==2.13.5
+    # via
+    #   numpydantic
+    #   wandb
+pydantic-core==2.46.5
+    # via pydantic
+pygments==2.21.0
+    # via
+    #   ipython
+    #   pytest
+pyparsing==3.3.3
+    # via matplotlib
+pyserial==3.5
+    # via -r requirements-server.in
+pytest==9.1.1
+    # via -r requirements.txt
+python-dateutil==2.9.0.post0
+    # via
+    #   matplotlib
+    #   pandas
+pytz==2026.4
+    # via pandas
+pyyaml==6.0.2
+    # via
+    #   -r requirements-server.in
+    #   accelerate
+    #   datasets
+    #   draccus
+    #   huggingface-hub
+    #   peft
+    #   pyyaml-include
+    #   transformers
+    #   wandb
+pyyaml-include==1.4.1
+    # via draccus
+regex==2026.9.29
+    # via
+    #   diffusers
+    #   transformers
+requests==2.34.2
+    # via
+    #   datasets
+    #   diffusers
+    #   huggingface-hub
+    #   torchdata
+    #   transformers
+    #   wandb
+safetensors==0.8.0
+    # via
+    #   accelerate
+    #   diffusers
+    #   peft
+    #   transformers
+scipy==1.14.1
+    # via
+    #   -r requirements-server.in
+    #   utils3d
+sentry-sdk==2.71.0
+    # via wandb
+setuptools==80.9.0
+    # via
+    #   -r requirements-server.in
+    #   tensorboard
+    #   triton
+six==1.17.0
+    # via
+    #   python-dateutil
+    #   tensorboard
+smmap==5.0.3
+    # via gitdb
+stack-data==0.6.3
+    # via ipython
+sympy==1.14.0
+    # via torch
+tensorboard==2.16.2
+    # via -r requirements.txt
+tensorboard-data-server==0.7.2
+    # via tensorboard
+termcolor==3.1.0
+    # via -r requirements-server.in
+tokenizers==0.21.4
+    # via transformers
+toml==0.10.2
+    # via draccus
+tomli==2.4.1
+    # via
+    #   ipdb
+    #   pytest
+torch @ https://download.pytorch.org/whl/cu128/torch-2.8.0%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl
+    # via
+    #   -r requirements-server.in
+    #   accelerate
+    #   peft
+    #   torchaudio
+    #   torchdata
+    #   torchvision
+torchaudio @ https://download.pytorch.org/whl/cu128/torchaudio-2.8.0%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl
+    # via -r requirements-server.in
+torchcodec==0.6.0
+    # via -r requirements.txt
+torchdata==0.11.0
+    # via -r requirements-server.in
+torchvision @ https://download.pytorch.org/whl/cu128/torchvision-0.23.0%2Bcu128-cp310-cp310-manylinux_2_28_x86_64.whl
+    # via -r requirements-server.in
+tqdm==4.70.1
+    # via
+    #   datasets
+    #   huggingface-hub
+    #   peft
+    #   transformers
+traitlets==5.16.1
+    # via
+    #   ipython
+    #   matplotlib-inline
+transformers==4.51.3
+    # via
+    #   -r requirements.txt
+    #   peft
+trimesh==4.7.4
+    # via -r requirements-server.in
+triton==3.4.0
+    # via torch
+typing-extensions==4.16.0
+    # via
+    #   aiohttp
+    #   aiosignal
+    #   exceptiongroup
+    #   grpcio
+    #   gymnasium
+    #   huggingface-hub
+    #   ipython
+    #   multidict
+    #   numpydantic
+    #   pydantic
+    #   pydantic-core
+    #   torch
+    #   typing-inspect
+    #   typing-inspection
+    #   wandb
+typing-inspect==0.9.0
+    # via draccus
+typing-inspection==0.4.4
+    # via pydantic
+tzdata==2026.4
+    # via pandas
+urllib3==2.8.0
+    # via
+    #   blobfile
+    #   requests
+    #   sentry-sdk
+    #   torchdata
+utils3d @ git+https://github.com/EasternJournalist/utils3d.git@3fab839f0be9931dac7c8488eb0e1600c236e183
+    # via -r requirements-server.in
+wandb==0.21.4
+    # via -r requirements-server.in
+wcwidth==0.9.1
+    # via prompt-toolkit
+websockets==16.1.1
+    # via -r requirements.txt
+werkzeug==3.1.9
+    # via tensorboard
+wheel==0.45.1
+    # via -r requirements-server.in
+xxhash==4.0.1
+    # via datasets
+yarl==1.25.1
+    # via aiohttp
+zipp==4.1.0
+    # via importlib-metadata

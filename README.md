@@ -43,7 +43,7 @@ data from 9 popular dual-arm robot configurations.
 
 
 ## 🛠️ Installation
-Requirements
+Upstream reference environment (for the Python 3.10.12 server profile, see below):
  - Python 3.12.3
  - Pytorch 2.8.0
  - CUDA 12.8
@@ -55,6 +55,73 @@ conda activate lingbotvla
 git clone https://github.com/Robbyant/lingbot-vla.git
 cd lingbot-vla
 bash install.sh
+```
+
+### 服务器本地 uv 环境（Python 3.10.12）
+
+从 Git 克隆本仓库后，在仓库根目录运行：
+
+```bash
+bash setup_uv.sh
+source .venv/activate-local.sh
+```
+
+脚本目标是 Linux x86_64 / glibc 2.28+ 的 NVIDIA GPU 服务器，使用
+PyTorch 2.8.0 + CUDA 12.8 wheel。服务器需预装 `curl`、`tar`、`git`、
+FFmpeg 及其共享库，以及支持该 CUDA 运行时的 NVIDIA 驱动。
+Ubuntu 上缺少工具时，可先运行 `sudo apt-get install curl tar git ffmpeg libgl1`。
+`libgl1` 是此配置中 OpenCV wheel 的系统运行库。
+默认使用 FlashAttention 预编译 wheel，不需要在安装过程中编译 CUDA 扩展。
+
+安装目录全部以 `setup_uv.sh` 所在的仓库根目录为准，不受启动脚本时的工作目录影响：
+
+```text
+lingbot-vla/
+├── .tools/uv/          # uv 0.10.9
+├── .python/            # 独立下载的 CPython 3.10.12
+├── .venv/             # 训练虚拟环境
+└── .cache/uv/         # 下载和构建缓存
+```
+
+这些目录均已被 Git 忽略。脚本不会修改系统 Python 或 shell 启动文件。
+由于子进程不能激活父 shell，安装完成后仍需执行上面的 `source` 命令；
+它同时设置当前 shell 的 Python、uv 路径和本地缓存位置。
+
+已有 `.venv` 如果不是使用本仓库 `.python/` 下的 Python 3.10.12，脚本会停止，
+不会覆盖它。先自行备份或移走旧环境，再运行安装脚本。相同版本和路径的环境可重复运行安装。
+仓库移动路径后也应重建环境，而不是直接搬运 `.venv`。
+
+可选用法：
+
+```bash
+bash setup_uv.sh --python-only      # 只下载 uv、Python 并创建空环境
+bash setup_uv.sh --skip-flash-attn  # 训练配置须使用 eager 或 sdpa
+```
+
+`requirements-server.in` 维护训练依赖，`requirements-server.lock` 锁定解析结果。
+该配置保留当前训练使用的 Torch、Transformers、Datasets 等主要版本，并为 Python 3.10
+选择 pandas 2.3.3；不是对原有 Python 3.12 环境的逐包复制。
+需要更新锁文件时，在此环境中运行：
+
+```bash
+uv pip compile requirements-server.in --python .venv/bin/python \
+  --output-file requirements-server.lock --no-header
+```
+
+LeRobot 0.4.2、仓库本身和两个视觉子模块另外以 `--no-deps` 安装：
+它们的上游元数据与当前训练依赖存在冲突（例如 LeRobot 的 Torch 上限、MDM 的 Torch 2.6 要求）。
+此处提供训练所用依赖，不包含 LeRobot 全部机器人控制依赖或 MoGe 的 Gradio 界面；
+因此 `uv pip check` 仍可能报告这些已知声明冲突或未安装的可选用途依赖。
+请使用此脚本管理环境，直接 `uv sync` 不会复现这套安装顺序和依赖选择。
+
+脚本末尾会检查训练入口、视频解码、模型和深度模块的导入；失败时返回非零状态。
+环境安装成功不等于完成 GPU 训练验证，正式训练前仍应做少量步数的试跑。
+模型权重、数据集和 `norm_stats.json` 需单独准备，并修改所选 YAML 中的服务器路径：
+
+```bash
+source .venv/activate-local.sh
+torchrun --standalone --nnodes=1 --nproc-per-node=1 \
+  tasks/vla/train_lingbotvla.py configs/vla/mixed_conditioned_chunk25.yaml
 ```
 
 ---
