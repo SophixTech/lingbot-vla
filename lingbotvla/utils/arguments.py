@@ -224,6 +224,10 @@ class DataArguments:
         default=None,
         metadata={"help": "Path to the normalization stats file."},
     )
+    exclude_regrasp: bool = field(
+        default=True,
+        metadata={"help": "Exclude annotated regrasp episodes; false loads all episodes."},
+    )
 
     def __post_init__(self):
         if self.text_keys is None:
@@ -495,6 +499,10 @@ class TrainingArguments:
         default=False,
         metadata={"help": "Whether or not to freeze the vision encoder in VLA model."},
     )
+    use_lora: bool = field(default=False, metadata={"help": "Inject LoRA adapters and train only adapter parameters."})
+    lora_rank: int = field(default=8, metadata={"help": "LoRA adapter rank."})
+    lora_alpha: int = field(default=16, metadata={"help": "LoRA scaling alpha."})
+    lora_target_modules: str = field(default="q_proj,k_proj,v_proj,o_proj", metadata={"help": "Comma-separated linear-module suffixes to adapt with LoRA."})
     tokenizer_max_length: int = field(
         default=48,
         metadata={"help": "Maximum length of the tokenizer."},

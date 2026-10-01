@@ -1,0 +1,6 @@
+[Unit]
+Description=Check LingBot VLA mixed conditioned chunk25 completion
+
+[Service]
+Type=oneshot
+ExecStart=/home/bjtc/Sophix/lingbot-vla/deploy/check_mixed_conditioned_chunk25_completion.sh

@@ -1,0 +1,11 @@
+[Unit]
+Description=One-time completion check for mixed conditioned chunk25 training
+
+[Timer]
+OnCalendar=2026-09-26 21:30:00
+AccuracySec=1min
+Persistent=true
+Unit=mixed-conditioned-chunk25-completion-check.service
+
+[Install]
+WantedBy=timers.target

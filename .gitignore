@@ -216,3 +216,11 @@ run.sh
 start_multi_eval.sh
 trash/
 eval.sh
+
+# Generated training and evaluation artifacts
+/output/
+/logs/
+
+# Local scratch files
+/camera.txt
+/hal.txt

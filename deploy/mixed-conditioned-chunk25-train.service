@@ -1,0 +1,17 @@
+[Unit]
+Description=LingBot VLA mixed conditioned chunk25 training
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/bjtc/Sophix/lingbot-vla
+Environment=CUDA_VISIBLE_DEVICES=0
+Environment=TOKENIZERS_PARALLELISM=false
+ExecStart=/home/bjtc/Sophix/lingbot-vla/deploy/run_mixed_conditioned_chunk25_service.sh
+Restart=on-failure
+RestartSec=60
+StandardOutput=append:/home/bjtc/Sophix/lingbot-vla/output/separated_model/mixed_conditioned_chunk25/service.log
+StandardError=append:/home/bjtc/Sophix/lingbot-vla/output/separated_model/mixed_conditioned_chunk25/service.log
+
+[Install]
+WantedBy=default.target

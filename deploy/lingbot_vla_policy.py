@@ -33,6 +33,8 @@ from .websocket_policy_server import WebsocketPolicyServer
 from lingbotvla.models.vla.pi0.modeling_lingbot_vla import LingbotVlaPolicy
 from lingbotvla.data.vla_data.utils import FeatureTransform
 from lingbotvla.models import build_processor
+from lingbotvla.rtc import RTCConfig, RTCProcessor
+from lingbotvla.utils.lora_utils import add_lora_to_model
 
 def set_seed_everywhere(seed: int):
     """Sets the random seed for Python, NumPy, and PyTorch functions."""
@@ -49,7 +51,10 @@ class PolicyPreprocessMixin:
 
     @torch.no_grad
     def select_action(
-        self, observation: dict[str, Tensor], use_bf16: bool = False, noise: Tensor | None = None, num_denoising_step : int = 10
+        self, observation: dict[str, Tensor], use_bf16: bool = False, noise: Tensor | None = None,
+        num_denoising_step: int = 10, rtc_enabled: bool = False,
+        rtc_processor=None, prev_chunk_left_over: Tensor | None = None,
+        inference_delay: int | None = None,
     ):
         self.eval()
         device = 'cuda'
@@ -63,20 +68,33 @@ class PolicyPreprocessMixin:
             observation['images'] = observation['images'].unsqueeze(0)
             observation['img_masks'] = observation['img_masks'].unsqueeze(0)
 
-        actions = self.model.sample_actions(
-            observation['images'].to(dtype=dtype, device=device), 
-            observation['img_masks'].to(device=device), 
-            observation['lang_tokens'].unsqueeze(0).to(device=device), 
-            observation['lang_masks'].unsqueeze(0).to(device=device), 
-            observation['state'].unsqueeze(0).to(dtype=dtype, device=device), 
-            num_steps = num_denoising_step
+        model_args = (
+            observation['images'].to(dtype=dtype, device=device),
+            observation['img_masks'].to(device=device),
+            observation['lang_tokens'].unsqueeze(0).to(device=device),
+            observation['lang_masks'].unsqueeze(0).to(device=device),
+            observation['state'].unsqueeze(0).to(dtype=dtype, device=device),
         )
+        if rtc_enabled and rtc_processor is not None and prev_chunk_left_over is not None:
+            actions = self.model.sample_actions(
+                *model_args, num_steps=num_denoising_step, rtc_enabled=True,
+                rtc_processor=rtc_processor, prev_chunk_left_over=prev_chunk_left_over,
+                inference_delay=inference_delay, action_mask=observation.get("joint_mask"),
+            )
+        else:
+            # Exact original invocation for off mode and the first RTC chunk.
+            actions = self.model.sample_actions(*model_args, num_steps=num_denoising_step)
         print('sample action time: ', time.time()-s1)
         
         observation['actions'] = actions.squeeze(0).to(dtype=torch.float32, device='cpu')
         if use_bf16:
             observation['state'] = observation['state'].to(dtype=torch.float32)
         data = self.feature_transform.unapply(observation)
+        # Keep the normalized model-space chunk alongside the robot-space
+        # output.  The deployment scheduler uses this only to align the next
+        # RTC request; it is never sent directly to the robot.
+        if rtc_enabled:
+            data["_rtc_model_action"] = actions.squeeze(0).to(dtype=torch.float32, device="cpu").numpy()
         return data
 
 class LingBotVlaInferencePolicy(PolicyPreprocessMixin, LingbotVlaPolicy):
@@ -130,7 +148,9 @@ class LingbotVLAServer:
         use_fp32=False,
         robot_norm_path: str = None,
         num_denoising_step=10,
-        use_compile=False
+        use_compile=False,
+        rtc_mode="off",
+        rtc_max_guidance_weight=5.0,
     ) -> None:
         assert not (use_bf16 and use_fp32), 'Bfloat16 or Float32!!!'
         self.adaptive_ensemble_alpha = adaptive_ensemble_alpha
@@ -138,6 +158,12 @@ class LingbotVLAServer:
         self.use_length = use_length
         self.use_compile = use_compile
         self.num_denoising_step = num_denoising_step
+        if rtc_mode not in ("off", "true"):
+            raise ValueError("LingbotVLAServer rtc_mode must be 'off' or 'true'")
+        self.rtc_mode = rtc_mode
+        self.rtc_processor = RTCProcessor(RTCConfig(
+            max_guidance_weight=rtc_max_guidance_weight,
+        )) if rtc_mode == "true" else None
 
         self.robot_norm_path = robot_norm_path
         
@@ -193,6 +219,21 @@ class LingbotVLAServer:
         print('Initializing model ... ')
         policy = LingBotVlaInferencePolicy(config, tokenizer_path=base_model_path)
 
+        # Post-training checkpoints retain PEFT adapter parameters. Recreate
+        # that topology before strict loading so base_layer/lora_A/lora_B keys
+        # match the saved model exactly.
+        if bool(training_config.get('train', {}).get('use_lora', False)):
+            lora_modules = training_config['train'].get(
+                'lora_target_modules', 'q_proj,k_proj,v_proj,o_proj'
+            )
+            policy = add_lora_to_model(
+                policy,
+                lora_rank=int(training_config['train'].get('lora_rank', 8)),
+                lora_alpha=int(training_config['train'].get('lora_alpha', 16)),
+                lora_target_modules=lora_modules,
+                lora_target_modules_support=('q_proj', 'k_proj', 'v_proj', 'o_proj'),
+            )
+
         all_safetensors = glob(os.path.join(path_to_pi_model, "*.safetensors"))
         merged_weights = {}
 
@@ -223,7 +264,20 @@ class LingbotVLAServer:
         self.last_action_chunk = None
 
         image_processor = self.processor.image_processor
-        robot_config = f'configs/robot_configs/{robo_name}.yaml'
+        # ``robot_config_root`` is stored relative to the LingBot-VLA
+        # checkout in training checkpoints.  Resolve it here instead of
+        # relying on the process cwd (the G1 client is normally launched from
+        # /home/bjtc/Sophix/g1).
+        robot_config_root = Path(getattr(self.data_config, "robot_config_root", "configs/robot_configs"))
+        if not robot_config_root.is_absolute():
+            robot_config_root = Path(__file__).resolve().parents[1] / robot_config_root
+        robot_config = robot_config_root / f"{robo_name}.yaml"
+        if not robot_config.is_file():
+            available = sorted(p.name for p in robot_config_root.glob("*.yaml")) if robot_config_root.is_dir() else []
+            raise FileNotFoundError(
+                f"Robot config for {robo_name!r} is missing: {robot_config}. "
+                f"Available configs: {available}"
+            )
 
         feature_transform = FeatureTransform(robot_config, self.data_config, \
                     self.language_tokenizer, image_processor, \
@@ -255,10 +309,13 @@ class LingbotVLAServer:
         if 'reset' in observation and observation['reset']:
             self.reset(robo_name=observation['robo_name'])
             return dict(action = None)
+        rtc_request = observation.pop("_rtc", None)
         self.resize_image(observation)
         for k, v in observation.items():
             if isinstance(v, np.ndarray):
-                observation[k] = torch.from_numpy(v)
+                # WebSocket msgpack arrays may be read-only views.  A writable
+                # copy avoids undefined behavior in downstream transforms.
+                observation[k] = torch.from_numpy(np.array(v, copy=True))
         
         for action_feature in self.vla.feature_transform.org_features['actions']:
             if action_feature not in observation:
@@ -269,7 +326,18 @@ class LingbotVLAServer:
         observation = self.vla.feature_transform.apply(observation)
         if self.use_bf16:
             observation['state'] = observation['state'].to(torch.bfloat16)
-        output = self.vla.select_action(observation, self.use_bf16, num_denoising_step=self.num_denoising_step)
+        prev_chunk = None
+        inference_delay = None
+        if self.rtc_mode == "true" and rtc_request:
+            prev_chunk = rtc_request.get("prev_chunk_left_over")
+            inference_delay = int(rtc_request.get("inference_delay", 0))
+            if prev_chunk is not None:
+                prev_chunk = torch.as_tensor(np.array(prev_chunk, dtype=np.float32, copy=True))
+        output = self.vla.select_action(
+            observation, self.use_bf16, num_denoising_step=self.num_denoising_step,
+            rtc_enabled=self.rtc_mode == "true", rtc_processor=self.rtc_processor,
+            prev_chunk_left_over=prev_chunk, inference_delay=inference_delay,
+        )
     
         action_chunk = {}
         for output_key in output.keys():
@@ -277,6 +345,10 @@ class LingbotVLAServer:
                 assert self.use_length <= output[output_key].shape[0]
                 action_length = self.use_length if self.use_length > 0 else output[output_key].shape[0]
                 action_chunk[output_key] = output[output_key][ :action_length,:].float().cpu().numpy()
+        if "_rtc_model_action" in output:
+            action_chunk["_rtc_model_action"] = output["_rtc_model_action"]
+        # Preserve the transport's timing field; the websocket server fills
+        # infer_ms after this method returns.
         self.global_step+=1
         return action_chunk
 
@@ -304,10 +376,13 @@ def main():
     parser.add_argument('--norm_path',   type=str, default=None, help='norm file path of training data')
     parser.add_argument("--num_denoising_step", type=int, default=10, help="num of denoising step")
     parser.add_argument("--use_compile", action='store_true', help="use torch compile or not")
+    parser.add_argument("--rtc-mode", choices=("off", "true"), default="off",
+                        help="Flow-matching RTC mode; off preserves the original sampler")
+    parser.add_argument("--rtc-max-guidance-weight", type=float, default=5.0)
 
     args = parser.parse_args()
 
-    model = LingbotVLAServer(args.model_path, use_length=args.use_length, robot_norm_path=args.norm_path, num_denoising_step=args.num_denoising_step, use_compile=args.use_compile)
+    model = LingbotVLAServer(args.model_path, use_length=args.use_length, robot_norm_path=args.norm_path, num_denoising_step=args.num_denoising_step, use_compile=args.use_compile, rtc_mode=args.rtc_mode, rtc_max_guidance_weight=args.rtc_max_guidance_weight)
     model_server = WebsocketPolicyServer(model, port=args.port)
     model_server.serve_forever()
 

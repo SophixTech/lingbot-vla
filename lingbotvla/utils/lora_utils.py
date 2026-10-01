@@ -50,6 +50,12 @@ def add_lora_to_model(
         if lora_target_module not in lora_target_modules_support:
             raise ValueError(f"lora_target_module {lora_target_module} not in lora_target_modules_support")
 
+    # PEFT versions that inspect tied embeddings expect a mapping-like config,
+    # while LingBot's PI0Config is attribute-based.
+    model_config = getattr(model, "config", None)
+    if model_config is not None and not hasattr(model_config, "get"):
+        model_config.get = lambda key, default=None: getattr(model_config, key, default)
+
     model = inject_adapter_in_model(lora_config, model)
     for param in model.parameters():
         if param.requires_grad:
@@ -71,6 +77,8 @@ def add_lora_to_model(
         print(
             f"{num_updated_keys} parameters are loaded from {pretrained_lora_path}. {num_unexpected_keys} parameters are unexpected."
         )
+
+    return model
 
 
 def load_state_dict(file_path, torch_dtype=None):

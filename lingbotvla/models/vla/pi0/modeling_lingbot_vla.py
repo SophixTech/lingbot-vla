@@ -1097,13 +1097,36 @@ class QwenvlWithExpertModel(PreTrainedModel):
         if self.config.vocab_size != 0 and self.config.vocab_size != 257152 and vlm_config.vocab_size != self.config.vocab_size:
             vlm_config.vocab_size = self.config.vocab_size
         
-        vlm_config._attn_implementation = 'flash_attention_2'
-        self.qwenvl = Qwen2_5_VLForConditionalGeneration._from_config(vlm_config, use_flash_attention_2=True)
+        # The deployment loader intentionally selects eager attention for this
+        # checkout.  Do not force FlashAttention2 here: the old hard-coded
+        # ``use_flash_attention_2=True`` made every inference startup fail when
+        # the optional ``flash_attn`` package was absent, even though eager
+        # attention was already requested by the deployment config.
+        attention_impl = getattr(self.config, "attention_implementation", "eager")
+        if attention_impl in ("fa2", "flash_attention_2") and not is_flash_attn_available():
+            logger.warning("FlashAttention2 requested but flash_attn is unavailable; falling back to eager attention")
+            attention_impl = "eager"
+        if attention_impl == "fa2":
+            vlm_config._attn_implementation = "flash_attention_2"
+            self.qwenvl = Qwen2_5_VLForConditionalGeneration._from_config(
+                vlm_config, use_flash_attention_2=True
+            )
+        else:
+            vlm_config._attn_implementation = attention_impl
+            self.qwenvl = Qwen2_5_VLForConditionalGeneration._from_config(vlm_config)
         if self.config.use_lm_head:
             self.qwenvl.tie_weights()
         self.config.qwen_expert_config.norm_qkv = self.config.norm_qkv
-        self.config.qwen_expert_config._attn_implementation = 'flash_attention_2'
-        self.qwen_expert = Qwen2ForCausalLM._from_config(self.config.qwen_expert_config, use_flash_attention_2=True, eval=eval)
+        if attention_impl == "fa2":
+            self.config.qwen_expert_config._attn_implementation = "flash_attention_2"
+            self.qwen_expert = Qwen2ForCausalLM._from_config(
+                self.config.qwen_expert_config, use_flash_attention_2=True, eval=eval
+            )
+        else:
+            self.config.qwen_expert_config._attn_implementation = attention_impl
+            self.qwen_expert = Qwen2ForCausalLM._from_config(
+                self.config.qwen_expert_config, eval=eval
+            )
 
         self.rotary_pos_emb = None
         self.window_index = None
@@ -1616,7 +1639,9 @@ class FlowMatching(nn.Module):
     def embed_suffix(self, state, noisy_actions, timestep):
         bsize = state.shape[0] # state_bs = img_bs
         device = state.device
-        dtype = state.dtype
+        dtype = self.state_proj.weight.dtype
+        state = state.to(dtype=dtype)
+        noisy_actions = noisy_actions.to(dtype=self.action_in_proj.weight.dtype)
         # embed state
         state_emb = self.state_proj(state) # torch.Size([state_bs, 1024])
 
@@ -1742,7 +1767,9 @@ class FlowMatching(nn.Module):
         return losses, loss_depth, depth_preds
     
     def sample_actions(
-        self, images, img_masks, lang_tokens, lang_masks, state, vlm_causal=False, noise=None, num_steps = None
+        self, images, img_masks, lang_tokens, lang_masks, state, vlm_causal=False, noise=None,
+        num_steps=None, rtc_enabled=False, rtc_processor=None, prev_chunk_left_over=None,
+        inference_delay=None, action_mask=None
     ) -> Tensor:
         """Do a full inference forward and compute the action (batch_size x num_steps x num_motors)"""
         bsize = state.shape[0]
@@ -1784,9 +1811,26 @@ class FlowMatching(nn.Module):
             count += 1
             expanded_time = time.expand(bsize)
 
-            v_t = self.predict_velocity(
-                state, prefix_pad_masks, past_key_values, x_t, expanded_time
-            )
+            if rtc_enabled and rtc_processor is not None and prev_chunk_left_over is not None:
+                if inference_delay is None:
+                    raise ValueError("inference_delay is required when RTC is enabled")
+                velocity_fn = lambda x: self.predict_velocity(
+                    state, prefix_pad_masks, past_key_values, x, expanded_time
+                )
+                v_t = rtc_processor.denoise_step(
+                    x_t=x_t,
+                    time=expanded_time[0],
+                    prev_chunk_left_over=prev_chunk_left_over,
+                    inference_delay=inference_delay,
+                    action_mask=action_mask,
+                    original_velocity_fn=velocity_fn,
+                )
+            else:
+                # Preserve the original forward-only path when RTC is off and
+                # for the first unconstrained RTC chunk.
+                v_t = self.predict_velocity(
+                    state, prefix_pad_masks, past_key_values, x_t, expanded_time
+                )
 
             # Euler step
             x_t += dt * v_t

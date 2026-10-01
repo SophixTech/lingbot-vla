@@ -232,6 +232,13 @@ class Qwen2_5_VLVisionFlashAttention2(nn.Module):
         return attn_output
 
 
+def rotate_half(x: torch.Tensor) -> torch.Tensor:
+    """Rotate the last dimension by swapping and negating its halves."""
+    x1 = x[..., : x.shape[-1] // 2]
+    x2 = x[..., x.shape[-1] // 2 :]
+    return torch.cat((-x2, x1), dim=-1)
+
+
 def apply_rotary_pos_emb_vision(
     q: torch.Tensor, k: torch.Tensor, cos: torch.Tensor, sin: torch.Tensor
 ) -> Tuple[torch.Tensor, torch.Tensor]:
@@ -1322,7 +1329,21 @@ class Qwen2_5_VLForConditionalGeneration(Qwen2_5_VLPreTrainedModel, GenerationMi
 
     def __init__(self, config, **kwargs):
         super().__init__(config)
-        self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(config.vision_config, use_flash_attention_2=True)
+        # Keep the vision tower consistent with the parent model attention
+        # implementation.  The deployment path uses eager attention when the
+        # optional flash_attn package is unavailable; unconditionally passing
+        # use_flash_attention_2=True here otherwise defeats that fallback.
+        vision_attention = getattr(config, "_attn_implementation", "eager")
+        if vision_attention in ("fa2", "flash_attention_2") and not is_flash_attn_available():
+            logger.warning("FlashAttention2 requested for vision tower but flash_attn is unavailable; falling back to eager attention")
+            vision_attention = "eager"
+        config.vision_config._attn_implementation = vision_attention
+        if vision_attention == "flash_attention_2":
+            self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(
+                config.vision_config, use_flash_attention_2=True
+            )
+        else:
+            self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(config.vision_config)
         self.model = Qwen2_5_VLModel(config)
         self.vocab_size = config.vocab_size
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)

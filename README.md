@@ -304,6 +304,26 @@ Our LingBot-VLA achieves state-of-the-art results on real-world and simulation b
 
 ---
 
+## Flow-matching RTC (inference only)
+
+`FlowMatching.sample_actions()` integrates LingBot from noise at `t=1` to the
+normalized action endpoint at `t=0` using `x_t += dt * v_t`.  With
+`--rtc-mode true`, `RTCProcessor.denoise_step()` applies the previous,
+time-aligned normalized chunk as a Jacobian-transpose trajectory constraint
+inside every Euler step.  `--rtc-mode off` leaves the original call path
+unchanged; G1's `async-skip` mode remains a separate scheduling baseline.
+No checkpoint or training code is changed.  The deployment client keeps both
+the normalized model-space chunk (for the next RTC request) and the
+unnormalized robot-space command (for execution).
+
+Example server invocation for true RTC:
+
+```bash
+python -m deploy.lingbot_vla_policy --model_path <hf_ckpt> --norm_path <norm.json> \
+  --use_length 50 --num_denoising_step 10 --rtc-mode true \
+  --rtc-execution-horizon 30 --port 8006
+```
+
 ## 📝 Citation
 
 If you find our work useful in your research, feel free to give us a cite.

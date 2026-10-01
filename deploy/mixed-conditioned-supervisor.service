@@ -1,0 +1,15 @@
+[Unit]
+Description=Hourly supervisor for LingBot VLA mixed conditioned training
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/bjtc/Sophix/lingbot-vla
+ExecStart=/home/bjtc/Sophix/lingbot-vla/deploy/supervise_mixed_conditioned.sh
+Restart=on-failure
+RestartSec=30
+StandardOutput=append:/home/bjtc/Sophix/lingbot-vla/output/separated_model/mixed_conditioned/supervisor-service.log
+StandardError=append:/home/bjtc/Sophix/lingbot-vla/output/separated_model/mixed_conditioned/supervisor-service.log
+
+[Install]
+WantedBy=default.target
