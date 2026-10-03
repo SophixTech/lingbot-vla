@@ -41,11 +41,10 @@ train:
   lr_decay_style: constant
   micro_batch_size: 1
   gradient_accumulation_steps: 16
-  max_steps: 10000
+  max_steps: 100
   num_train_epochs: 999999999
   ckpt_manager: dcp
-  # One final checkpoint keeps this run within the remaining disk budget.
-  save_steps: 10000
+  save_steps: 100
   save_epochs: 0
   enable_fp32: false
   enable_mixed_precision: false

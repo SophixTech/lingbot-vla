@@ -59,6 +59,8 @@ class Arguments:
 
 def main():
     args = parse_args(Arguments)
+    if args.train.ecot_aux_supervision and not args.data.ecot_annotations_path:
+        raise ValueError("ECOT auxiliary supervision requires data.ecot_annotations_path")
     logger.info(f"Process rank: {args.train.global_rank}, world size: {args.train.world_size}")
     logger.info_rank0(json.dumps(asdict(args), indent=2))
     torch.cuda.set_device(f"cuda:{args.train.local_rank}")
@@ -360,6 +362,7 @@ def main():
             total_loss = 0
             total_vla_loss = 0
             total_depth_loss = 0
+            total_ecot_loss = 0
             depth_targets = None
             depth_preds = None
             torch.cuda.synchronize()
@@ -392,6 +395,7 @@ def main():
 
                 total_loss += loss.item()
                 total_vla_loss += vla_loss.item()
+                total_ecot_loss += loss_log["ecot_aux_loss"] / len(micro_batches)
                 if not (isinstance(depth_loss, int) or isinstance(depth_loss, float)):
                     total_depth_loss += depth_loss.item()
                 del micro_batch
@@ -411,7 +415,7 @@ def main():
                 grad_norm = grad_norm.full_tensor().item()
 
             # collect mean loss across data parallel group
-            total_loss, total_vla_loss, total_depth_loss, grad_norm = all_reduce((total_loss, total_vla_loss, total_depth_loss, grad_norm), group=get_parallel_state().fsdp_group)
+            total_loss, total_vla_loss, total_depth_loss, total_ecot_loss, grad_norm = all_reduce((total_loss, total_vla_loss, total_depth_loss, total_ecot_loss, grad_norm), group=get_parallel_state().fsdp_group)
             
             torch.cuda.synchronize()
             delta_time = time.time() - start_time
@@ -423,6 +427,7 @@ def main():
                 f"Loss {total_loss:.4f}, "
                 f"VLA_Loss {total_vla_loss:.4f}, "
                 f"Depth_Loss {total_depth_loss:.4f}, "
+                f"ECOT_Loss {total_ecot_loss:.4f}, "
                 f"GradNorm {grad_norm:.4f}, "
                 f"LR {lr:.2e}, "
                 f"StepTime {delta_time:.3f}s, "
@@ -433,6 +438,7 @@ def main():
                 writer.add_scalar("training/loss", total_loss, global_step)
                 writer.add_scalar("training/vla_loss", total_vla_loss, global_step)
                 writer.add_scalar("training/depth_loss", total_depth_loss, global_step)
+                writer.add_scalar("training/ecot_loss", total_ecot_loss, global_step)
                 writer.add_scalar("training/grad_norm", grad_norm, global_step)
                 writer.add_scalar("training/lr", lr, global_step)
                 writer.add_scalar("steptime", delta_time, global_step)

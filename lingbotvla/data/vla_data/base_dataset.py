@@ -131,7 +131,7 @@ class VLADataset(Dataset):
             self.ecot_annotations = ECOTAnnotations(
                 data_config.ecot_annotations_path,
                 split=split,
-                only_annotated=getattr(data_config, "ecot_annotations_only", False),
+                source_dataset=Path(repo_id).parent if split in {"train", "test"} else repo_id,
             )
 
         # The annotation run stores business labels separately from the

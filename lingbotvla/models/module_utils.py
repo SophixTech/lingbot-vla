@@ -277,7 +277,18 @@ def load_model_weights(
             assert all('.paligemma.' not in name for name in parameter_names) or all('.qwenvl.' not in name for name in parameter_names), \
                 "Parameters in VLM  are not loaded when PreTraining!!!"
         logger.info_rank0(f"Find missing key(s) in state dict: {parameter_names}, initialize them.")
+        ecot_heads = ("ecot_subtask_head", "ecot_bbox_head", "ecot_label_head")
+        missing_ecot_heads = {
+            head for head in ecot_heads
+            if any(name.startswith(f"model.{head}.") for name in parameter_names)
+        }
+        for head in missing_ecot_heads:
+            for layer in getattr(model.model, head).modules():
+                if layer is not getattr(model.model, head) and hasattr(layer, "reset_parameters"):
+                    layer.reset_parameters()
         for name in parameter_names:
+            if any(name.startswith(f"model.{head}.") for head in missing_ecot_heads):
+                continue
             _init_parameter(model, name)
 
     # we should tie embeddings after loading weights because to_empty() leads to untied weights,

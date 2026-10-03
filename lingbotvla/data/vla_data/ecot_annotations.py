@@ -15,11 +15,11 @@ SUBTASK_TO_ID = {
 class ECOTAnnotations:
     """Load episode annotations without copying or modifying source data."""
 
-    def __init__(self, root: str | Path, split: str, only_annotated: bool = False):
+    def __init__(self, root: str | Path, split: str, source_dataset: str | Path):
         self.root = Path(root)
         self.split = split
-        self.only_annotated = only_annotated
         self.records: dict[tuple[str, int], dict] = {}
+        self.image_sizes: dict[tuple[str, int], tuple[int, int]] = {}
         index_path = self.root / "annotations.jsonl"
         if not index_path.exists():
             raise FileNotFoundError(f"ECOT annotation index not found: {index_path}")
@@ -29,11 +29,16 @@ class ECOTAnnotations:
                 if not line.strip():
                     continue
                 index = json.loads(line)
+                if Path(index["source_dataset"]).resolve() != Path(source_dataset).resolve():
+                    raise ValueError(f"{index_path}:{line_no}: source dataset mismatch")
                 key = (str(index["split"]), int(index["episode_index"]))
+                if key in self.records:
+                    raise ValueError(f"{index_path}:{line_no}: duplicate {key}")
                 annotation_path = self.root / index["annotation_path"]
                 record = json.loads(annotation_path.read_text(encoding="utf-8"))
                 self._validate(index, record, annotation_path)
                 self.records[key] = record
+                self.image_sizes[key] = tuple(index["image_size"])
 
     @property
     def episode_indices(self) -> list[int]:
@@ -60,11 +65,12 @@ class ECOTAnnotations:
             bbox_target = [0.0, 0.0, 0.0, 0.0]
             bbox_valid = False
         else:
+            width, height = self.image_sizes[(self.split, int(episode_index))]
             bbox_target = [
-                float(bbox[0]) / 768.0,
-                float(bbox[1]) / 480.0,
-                float(bbox[2]) / 768.0,
-                float(bbox[3]) / 480.0,
+                float(bbox[0]) / width,
+                float(bbox[1]) / height,
+                float(bbox[2]) / width,
+                float(bbox[3]) / height,
             ]
             bbox_valid = True
         label_target = 1 if bool(record["grasp_label_up"]) else 0
@@ -77,6 +83,7 @@ class ECOTAnnotations:
         if missing:
             raise ValueError(f"{path}: missing fields {sorted(missing)}")
         frame_count = int(index["frame_count"])
+        width, height = index["image_size"]
         if len(record["bbox"]) != frame_count:
             raise ValueError(f"{path}: bbox length {len(record['bbox'])} != {frame_count}")
         segments = record["subtask"]
@@ -88,5 +95,5 @@ class ECOTAnnotations:
         for bbox in record["bbox"]:
             if bbox is None:
                 continue
-            if len(bbox) != 4 or not (0 <= bbox[0] < bbox[2] <= 768 and 0 <= bbox[1] < bbox[3] <= 480):
-                raise ValueError(f"{path}: bbox outside 768x480 image bounds")
+            if len(bbox) != 4 or not (0 <= bbox[0] < bbox[2] <= width and 0 <= bbox[1] < bbox[3] <= height):
+                raise ValueError(f"{path}: bbox outside image bounds")
