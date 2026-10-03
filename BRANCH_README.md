@@ -47,3 +47,11 @@ git revert <commit>
 ```
 
 禁止改写已共享历史。
+
+## 已提交
+
+- `e2dce21`：建立分支维护说明。
+- `a2ade52`：统一 prompt；读取 ECOT 标签；增加三个辅助 head 和 loss。
+- `8449df4`：验证两条样例、loss 掩码、旧权重加载；补训练日志。
+
+当前仅有 episode 0、1 标注；episode 2 尚未标注（API 返回 401）。完整模型训练尚未验证。
