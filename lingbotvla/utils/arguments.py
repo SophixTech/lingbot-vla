@@ -228,6 +228,14 @@ class DataArguments:
         default=True,
         metadata={"help": "Exclude annotated regrasp episodes; false loads all episodes."},
     )
+    ecot_annotations_path: Optional[str] = field(
+        default=None,
+        metadata={"help": "Root directory of ECOT sidecar annotations."},
+    )
+    ecot_annotations_only: bool = field(
+        default=False,
+        metadata={"help": "Train only episodes that have ECOT annotations."},
+    )
 
     def __post_init__(self):
         if self.text_keys is None:
@@ -591,6 +599,13 @@ class TrainingArguments:
         default=10,
         metadata={"help": "Denosing step num."},
     )
+    ecot_aux_supervision: bool = field(
+        default=False,
+        metadata={"help": "Enable ECOT subtask, bbox, and label auxiliary losses."},
+    )
+    ecot_subtask_loss_weight: float = field(default=0.1)
+    ecot_bbox_loss_weight: float = field(default=0.05)
+    ecot_label_loss_weight: float = field(default=0.1)
 
     def __post_init__(self):
         self._train_steps = -1

@@ -112,6 +112,9 @@ def main():
             lora_target_modules=args.train.lora_target_modules,
             lora_target_modules_support=supported_lora_modules,
         )
+        if getattr(model.config, "ecot_aux_supervision", False):
+            for name in ("ecot_subtask_head", "ecot_bbox_head", "ecot_label_head"):
+                getattr(model.model, name).requires_grad_(True)
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         total_params = sum(p.numel() for p in model.parameters())
         if trainable_params == 0:

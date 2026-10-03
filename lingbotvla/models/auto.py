@@ -110,6 +110,10 @@ def build_foundation_model(
     config.use_delta_joint_actions_aloha = config_kwargs['use_delta_joint_actions_aloha']
     config.train_expert_only = config_kwargs['train_expert_only']
     config.resize_imgs_with_padding = config_kwargs['resize_imgs_with_padding']
+    config.ecot_aux_supervision = config_kwargs.get('ecot_aux_supervision', False)
+    config.ecot_subtask_loss_weight = config_kwargs.get('ecot_subtask_loss_weight', 0.1)
+    config.ecot_bbox_loss_weight = config_kwargs.get('ecot_bbox_loss_weight', 0.05)
+    config.ecot_label_loss_weight = config_kwargs.get('ecot_label_loss_weight', 0.1)
 
     if vocab_size == 0:
         if vlm_repo_id and 'paligemma' in vlm_repo_id:

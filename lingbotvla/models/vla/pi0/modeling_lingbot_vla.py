@@ -1437,11 +1437,13 @@ class LingbotVlaPolicy(PreTrainedPolicy):
         pass
     
     def forward(
-        self, images, img_masks, state, lang_tokens, lang_masks, actions, joint_mask=None, action_is_pad=None, label=None, noise=None, time=None, vlm_causal=False, depth_targets=None, norm_qkv=False
+        self, images, img_masks, state, lang_tokens, lang_masks, actions, joint_mask=None, action_is_pad=None, label=None, noise=None, time=None, vlm_causal=False, depth_targets=None, norm_qkv=False, ecot_subtask_target=None, ecot_bbox_target=None, ecot_bbox_valid=None, ecot_label_target=None
     ) -> tuple[Tensor, dict[str, Tensor]]:
         loss_dict = {}
-        losses, loss_depth, depth_preds = self.model.forward(
-            images, img_masks, lang_tokens, lang_masks, state, actions, label, noise, time, vlm_causal, self.config.loss_type, depth_targets, norm_qkv
+        losses, loss_depth, depth_preds, aux_loss = self.model.forward(
+            images, img_masks, lang_tokens, lang_masks, state, actions, label, noise, time,
+            vlm_causal, self.config.loss_type, depth_targets, norm_qkv,
+            ecot_subtask_target, ecot_bbox_target, ecot_bbox_valid, ecot_label_target,
         )
 
         batch_mean_losses = losses.mean(dim=(1, 2))
@@ -1458,9 +1460,10 @@ class LingbotVlaPolicy(PreTrainedPolicy):
         loss_vla = losses.mean()
         # For logging
         loss_dict["l2_loss"] = loss_vla.item()
+        loss_dict["ecot_aux_loss"] = aux_loss.detach().item()
         if not isinstance(loss_depth, int):
             loss_dict["depth_loss"] = loss_depth.item()
-        total_loss = loss_vla + loss_depth
+        total_loss = loss_vla + loss_depth + aux_loss
 
         return total_loss, loss_vla, loss_depth, loss_dict, depth_preds
 
@@ -1497,6 +1500,21 @@ class FlowMatching(nn.Module):
         self.action_out_proj = nn.Linear(
             self.config.proj_width, self.config.max_action_dim
         )
+        self.ecot_aux_supervision = bool(getattr(config, "ecot_aux_supervision", False))
+        if self.ecot_aux_supervision:
+            self.ecot_feature_width = qwenvl_with_export_config.qwenvl_config.hidden_size
+            self.ecot_subtask_head = nn.Sequential(
+                nn.LayerNorm(self.ecot_feature_width),
+                nn.Linear(self.ecot_feature_width, 4),
+            )
+            self.ecot_bbox_head = nn.Sequential(
+                nn.LayerNorm(self.ecot_feature_width),
+                nn.Linear(self.ecot_feature_width, 4),
+            )
+            self.ecot_label_head = nn.Sequential(
+                nn.LayerNorm(self.ecot_feature_width),
+                nn.Linear(self.ecot_feature_width, 2),
+            )
         if getattr(config, "separate_time_proj", False):
             self.time_mlp_in = nn.Linear(self.config.proj_width, self.config.proj_width)
             self.time_mlp_out = nn.Linear(self.config.proj_width, self.config.proj_width)
@@ -1702,7 +1720,11 @@ class FlowMatching(nn.Module):
         vlm_causal=False,
         loss_type='fm',
         depth_targets=None,
-        norm_qkv=False
+        norm_qkv=False,
+        ecot_subtask_target=None,
+        ecot_bbox_target=None,
+        ecot_bbox_valid=None,
+        ecot_label_target=None,
     ) -> Tensor:
         dtype = state.dtype
         device = state.device
@@ -1747,6 +1769,42 @@ class FlowMatching(nn.Module):
             ada_cond = time_embs if getattr(self.config, 'adanorm_time', False) else None,
             norm_qkv=norm_qkv
         )
+        aux_loss = prefix_embs.new_zeros(())
+        if self.ecot_aux_supervision and ecot_subtask_target is not None:
+            prefix_out = outputs_embeds[0]
+            prefix_mask = prefix_pad_masks.to(dtype=prefix_out.dtype).unsqueeze(-1)
+            pooled_prefix = (prefix_out * prefix_mask).sum(dim=1) / prefix_mask.sum(dim=1).clamp_min(1.0)
+
+            def head_input(head):
+                return pooled_prefix.to(dtype=head[1].weight.dtype)
+
+            subtask_logits = self.ecot_subtask_head(head_input(self.ecot_subtask_head)).float()
+            label_logits = self.ecot_label_head(head_input(self.ecot_label_head)).float()
+            bbox_pred = torch.sigmoid(self.ecot_bbox_head(head_input(self.ecot_bbox_head)).float())
+
+            subtask_target = ecot_subtask_target.to(device=subtask_logits.device, dtype=torch.long)
+            label_target = ecot_label_target.to(device=label_logits.device, dtype=torch.long)
+            subtask_loss = (
+                F.cross_entropy(subtask_logits, subtask_target, ignore_index=-100)
+                if (subtask_target != -100).any() else subtask_logits.sum() * 0.0
+            )
+            label_loss = (
+                F.cross_entropy(label_logits, label_target, ignore_index=-100)
+                if (label_target != -100).any() else label_logits.sum() * 0.0
+            )
+            valid_bbox = ecot_bbox_valid.to(device=bbox_pred.device, dtype=torch.bool)
+            if valid_bbox.any():
+                bbox_loss = F.smooth_l1_loss(
+                    bbox_pred[valid_bbox],
+                    ecot_bbox_target.to(device=bbox_pred.device, dtype=bbox_pred.dtype)[valid_bbox],
+                )
+            else:
+                bbox_loss = bbox_pred.sum() * 0.0
+            aux_loss = (
+                getattr(self.config, "ecot_subtask_loss_weight", 0.1) * subtask_loss
+                + getattr(self.config, "ecot_bbox_loss_weight", 0.05) * bbox_loss
+                + getattr(self.config, "ecot_label_loss_weight", 0.1) * label_loss
+            )
         if self.config.align_params != {}:
             loss_depth, depth_preds = self.depth_emb_forward(outputs_embeds, depth_targets, img_masks)
             loss_depth = loss_depth * self.config.align_params['depth_loss_weight']
@@ -1764,7 +1822,7 @@ class FlowMatching(nn.Module):
         elif loss_type == 'L1_fm':
             losses = F.l1_loss(u_t, v_t, reduction="none")
 
-        return losses, loss_depth, depth_preds
+        return losses, loss_depth, depth_preds, aux_loss
     
     def sample_actions(
         self, images, img_masks, lang_tokens, lang_masks, state, vlm_causal=False, noise=None,

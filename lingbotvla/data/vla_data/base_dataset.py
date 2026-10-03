@@ -31,6 +31,7 @@ from lerobot.datasets.lerobot_dataset import LeRobotDataset as BaseLeRobotDatase
 from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
 
 from .utils import FeatureTransform
+from .ecot_annotations import ECOTAnnotations
 
 
 class LeRobotDataset(BaseLeRobotDataset):
@@ -124,11 +125,18 @@ class VLADataset(Dataset):
         self.tokenizer = tokenizer
         self.chunk_size = chunk_size
         self.data_name = data_name
+        self.ecot_annotations = None
+        if getattr(data_config, "ecot_annotations_path", None):
+            split = Path(repo_id).name if Path(repo_id).name in {"train", "test"} else "train"
+            self.ecot_annotations = ECOTAnnotations(
+                data_config.ecot_annotations_path,
+                split=split,
+                only_annotated=getattr(data_config, "ecot_annotations_only", False),
+            )
 
         # The annotation run stores business labels separately from the
-        # LeRobot action data.  Keep only non-regrasp demonstrations for the
-        # normal behavior-cloning run, while retaining both initial label
-        # orientations as distinct language-conditioned task variants.
+        # LeRobot action data. Keep only non-regrasp demonstrations when
+        # requested; initial label orientation stays an auxiliary target.
         self.episode_labels = {}
         labels_path = Path(repo_id) / "meta" / "annotations" / "episode_labels.jsonl"
         if labels_path.exists():
@@ -140,6 +148,9 @@ class VLADataset(Dataset):
             ep for ep, record in sorted(self.episode_labels.items())
             if int(record.get("extra_labels", {}).get("self_annotation", {}).get("had_regrasp", 0)) == 0
         ] if self.episode_labels and getattr(data_config, 'exclude_regrasp', True) else None
+        if self.ecot_annotations is not None and getattr(data_config, "ecot_annotations_only", False):
+            annotated = set(self.ecot_annotations.episode_indices)
+            self.selected_episodes = sorted(annotated if self.selected_episodes is None else annotated.intersection(self.selected_episodes))
 
         if do_nomalize:
             data_config.max_state_dim = self.config.max_state_dim
@@ -207,18 +218,21 @@ class VLADataset(Dataset):
 
     def getdata(self, idx):
         item = self.dataset[idx]
-        # The source task column only identifies the generic package task. Use
-        # the per-episode annotation to condition behavior on initial label
-        # orientation: false requires a flip, true does not.
+        # Keep one deployment-valid instruction. Initial label orientation is
+        # supervised separately and is never leaked into the prompt.
+        item["task"] = (
+            "Take out the top soft package from the box; if the label is facing up, "
+            "place it directly on the conveyor belt; if the label is facing down, "
+            "flip it before placing it on the conveyor belt."
+        )
         ep_idx = int(item["episode_index"].item())
-        record = self.episode_labels.get(ep_idx)
-        if record is not None:
-            label_up = bool(record["extra_labels"]["self_annotation"]["grasp_label_up"])
-            item["task"] = (
-                "Pick the soft package from the box and place it on the conveyor belt, keeping the label facing up."
-                if label_up else
-                "Pick the soft package from the box, flip it so the label faces up, and place it on the conveyor belt."
-            )
+        if self.ecot_annotations is not None:
+            frame_index = int(item["frame_index"].item())
+            subtask, bbox, bbox_valid, label_up = self.ecot_annotations.target(ep_idx, frame_index)
+            item["ecot_subtask_target"] = torch.tensor(subtask, dtype=torch.long)
+            item["ecot_bbox_target"] = torch.tensor(bbox, dtype=torch.float32)
+            item["ecot_bbox_valid"] = torch.tensor(bbox_valid, dtype=torch.bool)
+            item["ecot_label_target"] = torch.tensor(label_up, dtype=torch.long)
         item = self.feature_transform.apply(item)
         return item
 

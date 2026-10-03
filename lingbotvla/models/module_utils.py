@@ -263,7 +263,15 @@ def load_model_weights(
     for name, buffer in buffer_dict.items():
         _dispatch_buffer(model, name, buffer)
     if post_training:
-        assert len(parameter_names) == 0, f"Missing {parameter_names} during Post-Training. This is not allowed!!!"
+        missing_pretrained = parameter_names
+        if getattr(model.config, "ecot_aux_supervision", False):
+            missing_pretrained = {
+                name for name in parameter_names
+                if not name.startswith((
+                    "model.ecot_subtask_head.", "model.ecot_bbox_head.", "model.ecot_label_head."
+                ))
+            }
+        assert not missing_pretrained, f"Missing {missing_pretrained} during Post-Training. This is not allowed!!!"
     if len(parameter_names) > 0:
         if load_vlm_only:
             assert all('.paligemma.' not in name for name in parameter_names) or all('.qwenvl.' not in name for name in parameter_names), \

@@ -24,7 +24,7 @@ class FeatureInfo(BaseModel):
         joints= []
         joints_max_dim = {}
         for s in joints_info:
-            joint_info = ast.literal_eval(s)
+            joint_info = ast.literal_eval(s) if isinstance(s, str) else s
             joint = next(iter(joint_info.keys()))
             if joint_info[joint] == 0: continue
 
@@ -69,7 +69,10 @@ class FeatureTransform:
 
         self.check_robot_config(robot_config)
         # keep the self.feature_to_keep in lerobot item when convert to new item
-        self.feature_to_keep = set(['timestamp', 'frame_index', 'episode_index', 'task_index', 'task', 'action_is_pad'])
+        self.feature_to_keep = set([
+            'timestamp', 'frame_index', 'episode_index', 'task_index', 'task', 'action_is_pad',
+            'ecot_subtask_target', 'ecot_bbox_target', 'ecot_bbox_valid', 'ecot_label_target',
+        ])
         
         target_features  = {'states':[], 'actions':[], 'images':[]}
         org_features  = {'states':set(), 'actions':set(), 'images':set()}
@@ -344,6 +347,9 @@ class FeatureTransform:
             "joint_mask": torch.cat(action_joints_pad, dim=-1).to(dtype=torch.bool),
             "prompt": [item["task"]],
         }
+        for key in ("ecot_subtask_target", "ecot_bbox_target", "ecot_bbox_valid", "ecot_label_target"):
+            if key in item:
+                batch_dict[key] = item[key]
 
         return batch_dict
 
@@ -379,6 +385,11 @@ class FeatureTransform:
         lang_tokens, lang_masks = prepare_language(self.tokenizer, batch_dict, self.data_config.tokenizer_max_length) 
         action_is_pad = batch_dict['action_is_pad']
         
+        ecot_targets = {
+            key: batch_dict[key]
+            for key in ("ecot_subtask_target", "ecot_bbox_target", "ecot_bbox_valid", "ecot_label_target")
+            if key in batch_dict
+        }
         batch_dict = {
                 'images': images,
                 'img_masks': img_masks,
@@ -389,6 +400,7 @@ class FeatureTransform:
                 'action_is_pad': action_is_pad,
                 'joint_mask': joint_mask,
             }
+        batch_dict.update(ecot_targets)
         if self.use_depth_align: batch_dict['pil_images'] = pil_images
         return batch_dict
 
