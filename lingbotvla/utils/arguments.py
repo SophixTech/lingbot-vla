@@ -224,6 +224,10 @@ class DataArguments:
         default=None,
         metadata={"help": "Path to the normalization stats file."},
     )
+    exclude_regrasp: bool = field(
+        default=True,
+        metadata={"help": "Exclude annotated regrasp episodes; false loads all episodes."},
+    )
 
     def __post_init__(self):
         if self.text_keys is None:
