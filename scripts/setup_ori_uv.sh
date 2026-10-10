@@ -10,7 +10,13 @@ Default: $HOME/.local/share/lingbot-vla-tools
 Layout: TOOLS/uv/uv, TOOLS/python/, TOOLS/cache/; repository/.venv/
 Requires: Linux x86_64, NVIDIA GPU/driver, CUDA toolkit 12.8 (nvcc),
           git, curl, g++, make, ffmpeg and FFmpeg shared libraries.
-Optional env: CUDA_HOME, MAX_JOBS (default 4), UV_VERSION (installer version).
+Optional env: CUDA_HOME, MAX_JOBS (default 4), UV_VERSION.
+ORI_PYPI_INDEX: Python package mirror (default Tsinghua).
+ORI_TORCH_INDEX: optional cu128 wheel index; unset uses official PyTorch backend.
+ORI_UV_BOOTSTRAP: auto (default), pypi, or official. pypi needs python3 + pip.
+UV_PYTHON_INSTALL_MIRROR: optional Python release mirror (must include 3.12.3).
+UV_INSTALLER_URL: optional installer script URL for official bootstrap mode.
+HTTPS_PROXY / HTTP_PROXY: proxy for remaining GitHub/network downloads.
 Does not install drivers, download model weights, or start training.
 HELP
     exit 0
@@ -46,6 +52,17 @@ export UV_PYTHON_BIN_DIR="$TOOLS_ROOT/python/bin"
 export UV_CACHE_DIR="$TOOLS_ROOT/cache"
 export UV_LINK_MODE=copy
 export MAX_JOBS=${MAX_JOBS:-4}
+ORI_PYPI_INDEX=${ORI_PYPI_INDEX:-https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple}
+ORI_TORCH_INDEX=${ORI_TORCH_INDEX:-}
+ORI_UV_BOOTSTRAP=${ORI_UV_BOOTSTRAP:-auto}
+export UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT:-120}
+export UV_HTTP_RETRIES=${UV_HTTP_RETRIES:-5}
+# Used by build subprocesses that invoke pip rather than uv.
+export PIP_INDEX_URL="$ORI_PYPI_INDEX"
+case "$ORI_UV_BOOTSTRAP" in
+    auto|pypi|official) ;;
+    *) echo 'ORI_UV_BOOTSTRAP must be auto, pypi or official' >&2; exit 2 ;;
+esac
 export PATH="$TOOLS_ROOT/uv:$CUDA_HOME/bin:$PATH"
 # Ignore an activated unrelated environment; every uv install explicitly targets this venv.
 VENV_DIR="$REPO_ROOT/.venv"
@@ -56,17 +73,38 @@ if [[ -e $VENV_DIR && ! -f $VENV_DIR/.ori-uv-environment ]]; then
     exit 2
 fi
 if [[ ! -x $UV_EXE ]]; then
-    installer=$(mktemp)
-    if [[ -n ${UV_VERSION:-} ]]; then
-        installer_url="https://astral.sh/uv/${UV_VERSION}/install.sh"
-    else
-        installer_url=https://astral.sh/uv/install.sh
+    use_pypi=false
+    if [[ $ORI_UV_BOOTSTRAP != official ]] && command -v python3 >/dev/null && python3 -m pip --version >/dev/null 2>&1; then
+        use_pypi=true
+    elif [[ $ORI_UV_BOOTSTRAP == pypi ]]; then
+        echo 'PyPI 安装 uv 需要 python3 和 pip；Docker root 可执行 apt-get install -y python3-pip。' >&2
+        exit 2
     fi
-    curl --fail --location --retry 3 "$installer_url" -o "$installer"
-    UV_UNMANAGED_INSTALL="$TOOLS_ROOT/uv" sh "$installer"
-    rm -- "$installer"
+    if [[ $use_pypi == true ]]; then
+        uv_requirement=uv
+        [[ -z ${UV_VERSION:-} ]] || uv_requirement="uv==$UV_VERSION"
+        # --target does not install into or replace system Python packages.
+        python3 -m pip install --index-url "$ORI_PYPI_INDEX" --only-binary=:all: \
+            --no-deps --upgrade --target "$TOOLS_ROOT/uv/bootstrap" "$uv_requirement"
+        cp -- "$TOOLS_ROOT/uv/bootstrap/bin/uv" "$UV_EXE"
+        cp -- "$TOOLS_ROOT/uv/bootstrap/bin/uvx" "$TOOLS_ROOT/uv/uvx"
+        chmod +x "$UV_EXE" "$TOOLS_ROOT/uv/uvx"
+    else
+        installer=$(mktemp)
+        if [[ -n ${UV_INSTALLER_URL:-} ]]; then
+            installer_url=$UV_INSTALLER_URL
+        elif [[ -n ${UV_VERSION:-} ]]; then
+            installer_url="https://astral.sh/uv/${UV_VERSION}/install.sh"
+        else
+            installer_url=https://astral.sh/uv/install.sh
+        fi
+        curl --fail --location --retry 3 "$installer_url" -o "$installer"
+        UV_UNMANAGED_INSTALL="$TOOLS_ROOT/uv" sh "$installer"
+        rm -- "$installer"
+    fi
 fi
 "$UV_EXE" --version
+# uv honors UV_PYTHON_INSTALL_MIRROR; no silent Python version change on mirror 404.
 "$UV_EXE" python install 3.12.3
 if [[ ! -f $VENV_DIR/.ori-uv-environment ]]; then
     "$UV_EXE" venv --python 3.12.3 --managed-python "$VENV_DIR"
@@ -87,8 +125,15 @@ numpy==1.26.4
 opencv-python==4.11.0.86
 opencv-python-headless==4.11.0.86
 PINS
+TORCH_SOURCE_ARGS=(--torch-backend cu128)
+if [[ -n $ORI_TORCH_INDEX ]]; then
+    # --torch-backend ignores custom indexes for torch packages, so omit it here.
+    unset UV_TORCH_BACKEND
+    TORCH_SOURCE_ARGS=(--index "$ORI_TORCH_INDEX")
+fi
 uv_install() {
-    "$UV_EXE" pip install --python "$PYTHON_EXE" --overrides "$OVERRIDES" --torch-backend cu128 "$@"
+    "$UV_EXE" pip install --python "$PYTHON_EXE" --overrides "$OVERRIDES" \
+        --default-index "$ORI_PYPI_INDEX" "${TORCH_SOURCE_ARGS[@]}" "$@"
 }
 uv_install 'setuptools>=77,<81' wheel packaging ninja psutil einops
 uv_install 'torch==2.8.0+cu128' 'torchvision==0.23.0+cu128' 'torchaudio==2.8.0+cu128'
@@ -100,7 +145,8 @@ PY
 
 # Use the submodule commits recorded in this checkout, not changing upstream HEADs.
 git submodule update --init --recursive
-uv_install 'lerobot @ https://github.com/huggingface/lerobot/archive/refs/tags/v0.4.2.tar.gz' -e "$REPO_ROOT"
+# Same release, fetched from PyPI/mirror instead of the GitHub tag archive.
+uv_install 'lerobot==0.4.2' -e "$REPO_ROOT"
 uv_install -e "$REPO_ROOT/lingbotvla/models/vla/vision_models/MoGe" 'gradio<6'
 # Match official install.sh: do not pull lingbot-depth's older torch/xformers pins.
 uv_install --no-deps -e "$REPO_ROOT/lingbotvla/models/vla/vision_models/lingbot-depth"
