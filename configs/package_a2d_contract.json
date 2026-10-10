@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "robot": "package_a2d",
-  "description": "Interface for ORI package post-training. This document is consumed by future migration checks, not automatically applied by the current training entry point.",
+  "description": "Human-readable interface record. Training reads the robot YAML and package_posttrain YAML, not this JSON.",
   "robot_config": "configs/robot_configs/package_a2d.yaml",
   "layout": {
     "state_key": "observation.state",
@@ -68,21 +68,21 @@
       "Use the same statistics for training, evaluation and deployment.",
       "Do not reuse 25-step arm statistics for this 50-step contract."
     ],
-    "status": "to_be_computed_in_M06"
+    "status": "reuse_existing_mixed_conditioned_train_statistics"
   },
   "task": {
-    "instruction": "Take the target soft package out of the box and place it on the conveyor belt with the label facing up, flipping it first if necessary.",
-    "source": "LeRobot task table via task_index",
-    "policy": "Same goal instruction for all episodes and for deployment; no ground-truth label-dependent prompt switching.",
+    "instruction": "Pick a soft package from the box, orient its label upward, and place it on the conveyor belt.",
+    "source": "main VLADataset.getdata: episode annotation overrides LeRobot task table when a label record exists",
+    "policy": "Preserve main behavior: grasp_label_up true selects keep-up prompt; false selects flip prompt; missing episode record retains dataset task.",
     "annotations": {
       "existing_field": "extra_labels.self_annotation.grasp_label_up",
       "declared_semantics": "pre_grasp_label_visibility",
-      "usage": "audit_and_evaluation_grouping",
+      "usage": "main_compatible_episode_conditioned_prompt_selection",
       "invisible_does_not_imply_requires_flip": true,
       "category_is_not_verified_task_outcome": true,
       "regrasp_is_not_automatically_invalid": true
     },
-    "status": "task_metadata_to_be_prepared_in_M04"
+    "status": "main_prompt_conditioning_migrated_M05"
   },
   "dataset": {
     "format": "LeRobot v3.0",
@@ -104,6 +104,6 @@
       "All three RGB streams correspond to the same observation timestamp.",
       "Frame and global indices agree with episode boundaries and loaded row order."
     ],
-    "audit_status": "full_dataset_audit_pending_M03"
+    "audit_status": "M03_removed_by_user"
   }
 }
