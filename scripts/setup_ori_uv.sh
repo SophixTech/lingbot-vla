@@ -57,6 +57,7 @@ ORI_TORCH_INDEX=${ORI_TORCH_INDEX:-}
 ORI_UV_BOOTSTRAP=${ORI_UV_BOOTSTRAP:-auto}
 export UV_HTTP_TIMEOUT=${UV_HTTP_TIMEOUT:-120}
 export UV_HTTP_RETRIES=${UV_HTTP_RETRIES:-5}
+export UV_CONCURRENT_DOWNLOADS=${UV_CONCURRENT_DOWNLOADS:-4}
 # Used by build subprocesses that invoke pip rather than uv.
 export PIP_INDEX_URL="$ORI_PYPI_INDEX"
 case "$ORI_UV_BOOTSTRAP" in
@@ -111,10 +112,17 @@ if [[ ! -f $VENV_DIR/.ori-uv-environment ]]; then
     touch "$VENV_DIR/.ori-uv-environment"
 fi
 
-# LeRobot 0.4.2 metadata conflicts with ORI's explicit dependency pins.
-# uv overrides deliberately preserve ORI's versions instead of downgrading torch.
+# Override only the known LeRobot/ORI recipe disagreements. In particular,
+# NumPy must remain a constraint so incompatible downstream packages are rejected.
 OVERRIDES="$VENV_DIR/ori-overrides.txt"
-cat > "$OVERRIDES" <<'PINS'
+cat > "$OVERRIDES" <<'OVERRIDES_END'
+torch==2.8.0+cu128
+torchvision==0.23.0+cu128
+torchcodec==0.6.0
+datasets==3.6.0
+OVERRIDES_END
+CONSTRAINTS="$VENV_DIR/ori-constraints.txt"
+cat > "$CONSTRAINTS" <<'PINS'
 torch==2.8.0+cu128
 torchvision==0.23.0+cu128
 torchaudio==2.8.0+cu128
@@ -122,8 +130,17 @@ torchcodec==0.6.0
 datasets==3.6.0
 transformers==4.51.3
 numpy==1.26.4
+# NumPy 1.x-compatible Arrow wheel; verified separately from the reference env.
+pyarrow==20.0.0
+# Versions verified in the existing training environment.
+scipy==1.14.1
+pandas==3.0.5
+numpydantic==1.8.1
 opencv-python==4.11.0.86
 opencv-python-headless==4.11.0.86
+setuptools>=77,<81
+packaging>=24.2,<26
+flash-attn==2.8.3
 PINS
 TORCH_SOURCE_ARGS=(--torch-backend cu128)
 if [[ -n $ORI_TORCH_INDEX ]]; then
@@ -132,10 +149,23 @@ if [[ -n $ORI_TORCH_INDEX ]]; then
     TORCH_SOURCE_ARGS=(--index "$ORI_TORCH_INDEX")
 fi
 uv_install() {
-    "$UV_EXE" pip install --python "$PYTHON_EXE" --overrides "$OVERRIDES" \
+    "$UV_EXE" pip install --python "$PYTHON_EXE" --overrides "$OVERRIDES" --constraints "$CONSTRAINTS" \
         --default-index "$ORI_PYPI_INDEX" "${TORCH_SOURCE_ARGS[@]}" "$@"
 }
-uv_install 'setuptools>=77,<81' wheel packaging ninja psutil einops
+# Fetch numerical packages from the general mirror, not the CUDA wheel index.
+"$UV_EXE" pip install --python "$PYTHON_EXE" --constraints "$CONSTRAINTS" \
+    --default-index "$ORI_PYPI_INDEX" \
+    numpy scipy pyarrow pandas numpydantic setuptools wheel packaging ninja psutil einops
+"$PYTHON_EXE" - <<'PY_NUMERIC'
+import numpy as np
+import scipy
+import pyarrow as pa
+import pandas as pd
+from scipy.optimize import linear_sum_assignment
+assert linear_sum_assignment([[1, 5], [6, 2]])[1].tolist() == [0, 1]
+np.testing.assert_array_equal(pa.array(np.arange(3)).to_numpy(), np.arange(3))
+print('Numerical imports ready:', np.__version__, scipy.__version__, pa.__version__, pd.__version__)
+PY_NUMERIC
 uv_install 'torch==2.8.0+cu128' 'torchvision==0.23.0+cu128' 'torchaudio==2.8.0+cu128'
 "$PYTHON_EXE" - <<'PY'
 import torch
@@ -146,15 +176,22 @@ PY
 # Use the submodule commits recorded in this checkout, not changing upstream HEADs.
 git submodule update --init --recursive
 # Same release, fetched from PyPI/mirror instead of the GitHub tag archive.
-uv_install 'lerobot==0.4.2' -e "$REPO_ROOT"
-uv_install -e "$REPO_ROOT/lingbotvla/models/vla/vision_models/MoGe" 'gradio<6'
+# Resolve training and MoGe dependencies together to preserve shared constraints.
+uv_install 'lerobot==0.4.2' -e "$REPO_ROOT" \
+    -e "$REPO_ROOT/lingbotvla/models/vla/vision_models/MoGe" 'gradio<6'
+"$PYTHON_EXE" - <<'PY_DATA'
+import datasets
+from transformers import PreTrainedModel
+from lingbotvla.data.vla_data.base_dataset import VLADataset
+print('Training data imports ready:', datasets.__version__)
+PY_DATA
 # Match official install.sh: do not pull lingbot-depth's older torch/xformers pins.
 uv_install --no-deps -e "$REPO_ROOT/lingbotvla/models/vla/vision_models/lingbot-depth"
 uv_install 'flash-attn==2.8.3' --no-build-isolation
 
 # Verify environment and kernels, without loading model weights or training.
 export PYTHONPATH="$REPO_ROOT${PYTHONPATH:+:$PYTHONPATH}"
-"$PYTHON_EXE" - "$REPO_ROOT" <<'PY'
+"$PYTHON_EXE" - "$REPO_ROOT" "$CONSTRAINTS" <<'PY'
 import importlib.metadata as metadata
 import sys
 from pathlib import Path
@@ -170,13 +207,17 @@ from lingbotvla.models.vla.pi0.modeling_lingbot_vla import LingbotVlaPolicy
 import tasks.vla.train_lingbotvla
 root = Path(sys.argv[1]).resolve()
 assert Path(lingbotvla.__file__).resolve().is_relative_to(root), lingbotvla.__file__
-for name, expected in [('torch','2.8.0+cu128'), ('torchvision','0.23.0+cu128'),
-                       ('torchaudio','2.8.0+cu128'), ('torchcodec','0.6.0'),
-                       ('lerobot','0.4.2'), ('datasets','3.6.0'),
-                       ('transformers','4.51.3'), ('numpy','1.26.4'), ('flash-attn','2.8.3')]:
-    actual = metadata.version(name)
-    assert actual == expected, (name, actual, expected)
-    print(f'{name}=={actual}')
+# Read the installation constraints directly; no second version list to drift.
+from packaging.requirements import Requirement
+for line in Path(sys.argv[2]).read_text().splitlines():
+    line = line.strip()
+    if not line or line.startswith('#'):
+        continue
+    requirement = Requirement(line)
+    actual = metadata.version(requirement.name)
+    assert requirement.specifier.contains(actual), (requirement.name, actual, str(requirement.specifier))
+    print(f'{requirement.name}=={actual}')
+assert metadata.version('lerobot') == '0.4.2'
 q = torch.randn(1, 16, 2, 64, device='cuda', dtype=torch.bfloat16, requires_grad=True)
 flash_attn_func(q, q, q).float().sum().backward()
 assert torch.isfinite(q.grad).all()
