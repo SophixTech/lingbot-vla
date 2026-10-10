@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "robot": "package_a2d",
+  "description": "Interface for ORI package post-training. This document is consumed by future migration checks, not automatically applied by the current training entry point.",
+  "robot_config": "configs/robot_configs/package_a2d.yaml",
+  "layout": {
+    "state_key": "observation.state",
+    "action_key": "action",
+    "raw_state_dim": 16,
+    "raw_action_dim": 16,
+    "slice_convention": "zero_based_start_inclusive_end_exclusive",
+    "groups": [
+      {"name": "left_arm", "start": 0, "end": 7},
+      {"name": "right_arm", "start": 7, "end": 14},
+      {"name": "left_gripper", "start": 14, "end": 15},
+      {"name": "right_gripper", "start": 15, "end": 16}
+    ],
+    "feature_groups": [
+      {"name": "arm.position", "dim": 14},
+      {"name": "effector.position", "dim": 2}
+    ],
+    "max_state_dim": 75,
+    "max_action_dim": 75,
+    "padding_note": "75 is the model padding limit, not the number of physical joints. Preserve the 16 raw dimensions in the order above.",
+    "units": {
+      "arm_state": "radians",
+      "arm_action": "absolute_joint_target_in_radians_before_transform",
+      "gripper": "source_native_position_units_no_conversion"
+    }
+  },
+  "cameras": [
+    {"name": "camera_top", "source_key": "observation.images.cam_high_rgb", "target_key": "observation.images.camera_top"},
+    {"name": "camera_wrist_left", "source_key": "observation.images.cam_left_wrist_rgb", "target_key": "observation.images.camera_wrist_left"},
+    {"name": "camera_wrist_right", "source_key": "observation.images.cam_right_wrist_rgb", "target_key": "observation.images.camera_wrist_right"}
+  ],
+  "actions": {
+    "horizon": 50,
+    "horizon_offsets": "k = 0, ..., 49; timestamp offset = k / dataset_fps",
+    "arm": {
+      "target_key": "action.arm.position",
+      "state_key": "observation.state.arm.position",
+      "subtract_state": true,
+      "forward": "relative_target[t,k] = absolute_target[t+k] - observed_state[t]",
+      "inverse": "absolute_target[t+k] = relative_target[t,k] + observed_state[t]",
+      "reference": "same_current_observation_for_all_horizon_steps"
+    },
+    "effector": {
+      "target_key": "action.effector.position",
+      "state_key": "observation.state.effector.position",
+      "subtract_state": false,
+      "representation": "absolute_target"
+    },
+    "episode_boundary": "Never query another episode. Mark out-of-bound horizon steps; current dataset behavior holds the final target.",
+    "execution_horizon": "A separate deployment choice; predicting 50 steps does not require executing all 50 before observing again."
+  },
+  "normalization": {
+    "type": "meanstd",
+    "fit_split": "train",
+    "stats_shapes": {
+      "observation.state.arm.position": [14],
+      "observation.state.effector.position": [2],
+      "action.arm.position": [50, 14],
+      "action.effector.position": [2]
+    },
+    "requirements": [
+      "Fit statistics after applying the robot mapping and arm state subtraction.",
+      "Record training source identities, dataset version and horizon with the statistics.",
+      "Use the same statistics for training, evaluation and deployment.",
+      "Do not reuse 25-step arm statistics for this 50-step contract."
+    ],
+    "status": "to_be_computed_in_M06"
+  },
+  "task": {
+    "instruction": "Take the target soft package out of the box and place it on the conveyor belt with the label facing up, flipping it first if necessary.",
+    "source": "LeRobot task table via task_index",
+    "policy": "Same goal instruction for all episodes and for deployment; no ground-truth label-dependent prompt switching.",
+    "annotations": {
+      "existing_field": "extra_labels.self_annotation.grasp_label_up",
+      "declared_semantics": "pre_grasp_label_visibility",
+      "usage": "audit_and_evaluation_grouping",
+      "invisible_does_not_imply_requires_flip": true,
+      "category_is_not_verified_task_outcome": true,
+      "regrasp_is_not_automatically_invalid": true
+    },
+    "status": "task_metadata_to_be_prepared_in_M04"
+  },
+  "dataset": {
+    "format": "LeRobot v3.0",
+    "fps": {
+      "source": "meta/info.json:fps",
+      "expected": 30,
+      "validation": "Require finite positive FPS, camera video FPS consistency and timestamp spacing consistent with metadata. A different rate requires an explicit contract revision or documented resampling; do not silently assume 30."
+    },
+    "identity": {
+      "metadata_file": "meta/episodes.jsonl",
+      "group_by": "source_episode_id",
+      "provenance_fields": ["source_manifest_sha256", "source_relative_path", "source_episode_index"],
+      "local_index": "episode_index",
+      "split_rule": "All complete, cropped or reindexed versions of a source_episode_id must stay in one split.",
+      "missing_identity": "Resolve source provenance before splitting; a local episode_index is not a source identity."
+    },
+    "alignment_checks": [
+      "State and action vectors have 16 finite values in the specified order.",
+      "All three RGB streams correspond to the same observation timestamp.",
+      "Frame and global indices agree with episode boundaries and loaded row order."
+    ],
+    "audit_status": "full_dataset_audit_pending_M03"
+  }
+}
