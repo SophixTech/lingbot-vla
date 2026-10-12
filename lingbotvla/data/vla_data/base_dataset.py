@@ -33,6 +33,15 @@ from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
 from .utils import FeatureTransform
 
 
+# Adapt branch-ecot's unified instruction to specify orientation before grasping.
+PACKAGE_TASK_PROMPT = (
+    "Take out the top soft package from the box. Based on its initial label "
+    "orientation in the box before grasping: if the label initially faces up, "
+    "place the package directly on the conveyor belt; if it initially faces down, "
+    "flip the package so the label faces up before placing it on the conveyor belt."
+)
+
+
 class LeRobotDataset(BaseLeRobotDataset):
     def __init__(
         self,
@@ -127,8 +136,8 @@ class VLADataset(Dataset):
 
         # The annotation run stores business labels separately from the
         # LeRobot action data.  Keep only non-regrasp demonstrations for the
-        # normal behavior-cloning run, while retaining both initial label
-        # orientations as distinct language-conditioned task variants.
+        # normal behavior-cloning run when requested. Both initial label
+        # orientations share the same instruction.
         self.episode_labels = {}
         labels_path = Path(repo_id) / "meta" / "annotations" / "episode_labels.jsonl"
         if labels_path.exists():
@@ -207,18 +216,10 @@ class VLADataset(Dataset):
 
     def getdata(self, idx):
         item = self.dataset[idx]
-        # The source task column only identifies the generic package task. Use
-        # the per-episode annotation to condition behavior on initial label
-        # orientation: false requires a flip, true does not.
-        ep_idx = int(item["episode_index"].item())
-        record = self.episode_labels.get(ep_idx)
-        if record is not None:
-            label_up = bool(record["extra_labels"]["self_annotation"]["grasp_label_up"])
-            item["task"] = (
-                "Pick the soft package from the box and place it on the conveyor belt, keeping the label facing up."
-                if label_up else
-                "Pick the soft package from the box, flip it so the label faces up, and place it on the conveyor belt."
-            )
+        # Use the same instruction at training and deployment. The model must
+        # infer orientation from observations, not from the episode annotation.
+        # Override source tasks even when an annotation record is missing.
+        item["task"] = PACKAGE_TASK_PROMPT
         item = self.feature_transform.apply(item)
         return item
 

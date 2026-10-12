@@ -9,7 +9,7 @@ model:
 data:
   datasets_type: vla
   data_name: package_a2d
-  robot_config_root: /home/bjtc/Sophix/lingbot-vla/ORI-lingbot-vla/configs/robot_configs
+  robot_config_root: configs/robot_configs
   # One canonical dataset root: train/ and test/ are separate LeRobot datasets.
   # Training reads only train/; test/ is reserved for independent evaluation.
   train_path: /home/bjtc/Sophix/datasets/marked_9_1_0922/train
@@ -26,7 +26,7 @@ data:
   # Both training and evaluation must use the statistics fitted on train/ only.
   norm_stats_file: /home/bjtc/Sophix/datasets/marked_9_1_0922/train_stats/norm_stats.json
 train:
-  output_dir: /home/bjtc/Sophix/lingbot-vla/ORI-lingbot-vla/output/marked_9_1_0922
+  output_dir: output/marked_9_1_0922_fullprompt
   data_parallel_mode: ddp
   enable_full_shard: true
   module_fsdp_enable: true

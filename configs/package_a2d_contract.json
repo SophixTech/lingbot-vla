@@ -71,18 +71,18 @@
     "status": "reuse_existing_mixed_conditioned_train_statistics"
   },
   "task": {
-    "instruction": "Pick a soft package from the box, orient its label upward, and place it on the conveyor belt.",
-    "source": "main VLADataset.getdata: episode annotation overrides LeRobot task table when a label record exists",
-    "policy": "Preserve main behavior: grasp_label_up true selects keep-up prompt; false selects flip prompt; missing episode record retains dataset task.",
+    "instruction": "Take out the top soft package from the box. Based on its initial label orientation in the box before grasping: if the label initially faces up, place the package directly on the conveyor belt; if it initially faces down, flip the package so the label faces up before placing it on the conveyor belt.",
+    "source": "VLADataset.getdata: PACKAGE_TASK_PROMPT, adapted from branch-ecot with explicit pre-grasp orientation",
+    "policy": "One instruction for all episodes, including those without annotation records. Both label orientations train together; orientation is inferred from observations.",
     "annotations": {
       "existing_field": "extra_labels.self_annotation.grasp_label_up",
       "declared_semantics": "pre_grasp_label_visibility",
-      "usage": "main_compatible_episode_conditioned_prompt_selection",
+      "usage": "dataset provenance and split stratification only; not used to select the prompt or as an auxiliary training target",
       "invisible_does_not_imply_requires_flip": true,
       "category_is_not_verified_task_outcome": true,
       "regrasp_is_not_automatically_invalid": true
     },
-    "status": "main_prompt_conditioning_migrated_M05"
+    "status": "unified_fullprompt_baseline"
   },
   "dataset": {
     "format": "LeRobot v3.0",

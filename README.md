@@ -42,6 +42,46 @@ data from 9 popular dual-arm robot configurations.
 ---
 
 
+## Full-prompt baseline (`dev/fullprompt`)
+
+This branch trains both `grasp_label_up=true` and `false` demonstrations with
+a single instruction adapted from `worktrees/branch-ecot`, explicitly referring
+to the initial label orientation in the box before grasping:
+
+> Take out the top soft package from the box. Based on its initial label orientation in the box before grasping: if the label initially faces up, place the package directly on the conveyor belt; if it initially faces down, flip the package so the label faces up before placing it on the conveyor belt.
+
+`VLADataset.getdata` assigns this instruction before feature transformation,
+including when an episode has no annotation record. Use exactly this instruction
+for evaluation and deployment too. The model learns which action to take from
+observations and demonstration actions; this branch does not add ECOT heads or
+auxiliary losses.
+
+`configs/vla/package_posttrain.yaml` reuses the existing mixed training split and
+its normalization statistics. `exclude_regrasp: false` retains all episodes,
+including both label orientations, with the existing sampling proportions.
+There is no new split, balancing, or annotation rewrite. The dataset's historical
+manifest still describes its original two-prompt policy; the loader in this
+branch overrides that policy.
+
+Run from this worktree's root with the training environment activated:
+
+```bash
+export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
+bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_posttrain.yaml
+```
+
+Update model, dataset, and statistics paths for the target training server.
+Robot configuration is read from this checkout and checkpoints go to
+`output/mixed_fullprompt`. The default initializes from the base model, with
+resume disabled; it does not automatically load the earlier step-30000 checkpoint.
+The inherited GPU/batch settings still need to fit the target hardware.
+
+Run the prompt regression checks without loading model weights:
+
+```bash
+python -m unittest discover -s tests -p 'test_fullprompt.py'
+```
+
 ## 🛠️ Installation
 Requirements
  - Python 3.12.3
