@@ -52,7 +52,8 @@ regardless of `grasp_label_up` or missing annotation records:
 Use exactly this instruction for evaluation and deployment too. The loader
 assigns it before feature transformation. Episode labels no longer select the
 prompt; ECOT auxiliary supervision and action conditioning remain enabled.
-The existing dataset split, episode selection, and normalization are preserved.
+The existing dataset split and episode selection are preserved. Normalization
+uses `meanstd` to match the full-prompt baseline.
 
 The ECOT sidecars provide subtask intervals, per-frame bounding boxes, and the
 initial label orientation. The loader retains source identity and annotation
@@ -66,10 +67,10 @@ A learned projection adds this vector to the action expert's input in both
 training and inference. It uses predictions, not ground-truth labels, and retains
 gradients from the action loss through the heads into the VLM.
 
-The default objective matches ECOT:
+The action objective matches the full-prompt baseline; ECOT auxiliary losses remain:
 
 ```text
-L = L1 flow matching
+L = MSE flow matching
   + 0.1 * subtask cross entropy
   + 0.05 * visible-box Smooth L1
   + 0.1 * initial-orientation cross entropy
@@ -99,8 +100,14 @@ bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_ecot_full.yaml
 ```
 
 Set the model/data paths for the target server. Outputs go to
-`output/newarti_ecot_fullprompt`. FSDP2 sharding and gradient checkpointing are enabled;
-the candidate batch is one sample per GPU with 16 accumulation steps. Full-model
+`output/newarti_ecot_fullprompt`. The shared recipe matches
+`ORI-lingbo-vla-fullprompt/configs/vla/package_posttrain.yaml`: `meanstd`
+normalization, MSE flow matching (`fm`), 8 data workers, compilation enabled,
+FSDP2 with `enable_full_shard: false`, and gradient checkpointing. The candidate
+batch is 32 samples per GPU with 4 accumulation steps; training runs for
+40,000 steps and saves every 10,000 steps. ECOT dataset/statistics paths,
+annotation selection, auxiliary loss weights, and branch-specific prompts
+remain unchanged. Full-model
 GPU memory capacity must be checked on the target hardware before a long run.
 `package_posttrain.yaml` is the non-ECOT baseline and also uses the unified prompt.
 
