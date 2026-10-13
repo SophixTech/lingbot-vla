@@ -41,7 +41,7 @@ def test_sample_alignment():
             assert label == int(record['grasp_label_up'])
 
 
-def test_bbox_loss_mask_with_no_valid_boxes():
+def make_loss_test_model():
     from lingbotvla.models.vla.pi0.modeling_lingbot_vla import FlowMatching
 
     model = FlowMatching.__new__(FlowMatching)
@@ -81,6 +81,11 @@ def test_bbox_loss_mask_with_no_valid_boxes():
     )
     model.sample_time = lambda batch_size, device: torch.full((batch_size,), 0.5, device=device)
 
+    return model
+
+
+def test_bbox_loss_mask_with_no_valid_boxes():
+    model = make_loss_test_model()
     action_loss, _, _, aux_loss = model.forward(
         images=torch.empty(2), img_masks=torch.empty(2), lang_tokens=torch.empty(2),
         lang_masks=torch.empty(2), state=torch.zeros(2, 3), actions=torch.zeros(2, 2, 3),
@@ -214,3 +219,57 @@ def test_old_checkpoint_initializes_only_new_heads(checkpoint_kind):
             assert torch.equal(parameter, weights[name]), name
         elif name.endswith(".0.weight") and "condition_proj" not in name:
             assert torch.equal(parameter, torch.ones_like(parameter))
+
+
+@pytest.mark.parametrize('annotated_count', [0, 1, 2])
+def test_auxiliary_mask_and_action_gradients_for_mixed_batches(annotated_count):
+    torch.manual_seed(17)
+    model = make_loss_test_model()
+    model.config.ecot_visibility = True
+    model.ecot_visibility_head = torch.nn.Sequential(torch.nn.LayerNorm(8), torch.nn.Linear(8, 1))
+    prefix = torch.randn(2, 4, 8, requires_grad=True)
+    suffix = torch.randn(2, 3, 8, requires_grad=True)
+    masks = torch.ones(2, 4, dtype=torch.bool)
+    model.embed_prefix = lambda *args: (prefix, masks, torch.zeros_like(masks))
+    model.embed_suffix = lambda *args: (
+        None, suffix, torch.ones(2, 3, dtype=torch.bool), torch.zeros(2, 3, dtype=torch.bool))
+    targets = torch.full((2,), -100)
+    targets[:annotated_count] = 0
+    bbox_valid = torch.arange(2) < annotated_count
+    boxes = torch.full((2, 4), float('nan'))
+    boxes[:annotated_count] = torch.tensor([.1, .2, .4, .5])
+    kwargs = dict(
+        images=torch.empty(2), img_masks=torch.empty(2), lang_tokens=torch.empty(2),
+        lang_masks=torch.empty(2), state=torch.zeros(2, 3), actions=torch.ones(2, 2, 3),
+        ecot_subtask_target=targets, ecot_label_target=targets,
+        ecot_bbox_valid=bbox_valid, ecot_bbox_target=boxes,
+    )
+    action, _, _, aux = model.forward(**kwargs)
+    assert torch.isfinite(aux)
+    aux.backward()
+    assert prefix.grad[annotated_count:].count_nonzero() == 0
+    heads = (model.ecot_subtask_head, model.ecot_label_head,
+             model.ecot_bbox_head, model.ecot_visibility_head)
+    if annotated_count:
+        assert prefix.grad[:annotated_count].abs().sum() > 0
+        assert all(head[1].weight.grad.abs().sum() > 0 for head in heads)
+    else:
+        assert aux.item() == 0
+        assert all(head[1].weight.grad.count_nonzero() == 0 for head in heads)
+    # Unlabeled examples still train the action expert.
+    action.mean().backward()
+    assert (suffix.grad.abs().sum(dim=(1, 2)) > 0).all()
+
+    # Ignored rows cannot change the auxiliary loss, even with NaN bbox targets.
+    with torch.no_grad():
+        prefix[annotated_count:] = torch.randn_like(prefix[annotated_count:]) * 100
+    _, _, _, changed_aux = model.forward(**kwargs)
+    torch.testing.assert_close(changed_aux, aux.detach())
+
+    if annotated_count == 1:
+        # Adding an ignored row must not dilute the annotated example's loss.
+        model.embed_prefix = lambda *args: (prefix[:1], masks[:1], torch.zeros_like(masks[:1]))
+        model.embed_suffix = lambda *args: (
+            None, suffix[:1], torch.ones(1, 3, dtype=torch.bool), torch.zeros(1, 3, dtype=torch.bool))
+        _, _, _, single_aux = model.forward(**{key: value[:1] for key, value in kwargs.items()})
+        torch.testing.assert_close(single_aux, aux.detach())

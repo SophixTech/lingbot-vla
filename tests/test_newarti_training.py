@@ -69,6 +69,38 @@ def test_two_prompts_and_sidecar_targets_survive_collation(annotations):
     assert annotations.target(999, 0) == (-100, [0., 0., 0., 0.], False, -100)
 
 
+def test_unannotated_samples_keep_actions_and_mask_all_auxiliary_targets(annotations):
+    dataset = VLADataset.__new__(VLADataset)
+    dataset.ecot_annotations = annotations
+    dataset.episode_labels = {
+        2: {"extra_labels": {"self_annotation": {"grasp_label_up": False}}},
+    }
+    dataset.dataset = [
+        {"episode_index": torch.tensor(ep), "frame_index": torch.tensor(0),
+         "task": "source task", "actions": torch.full((2, 3), float(ep))}
+        for ep in range(4)
+    ]
+    dataset.feature_transform = SimpleNamespace(apply=lambda item: item)
+    batch = VLADataCollatorWithPacking()([dataset.getdata(i) for i in range(4)])
+    assert batch["ecot_subtask_target"].tolist() == [0, 0, -100, -100]
+    assert batch["ecot_label_target"].tolist() == [1, 0, -100, -100]
+    assert batch["ecot_bbox_valid"].tolist() == [True, True, False, False]
+    assert dataset.getdata(2)["task"] == dataset.getdata(1)["task"]
+    assert dataset.getdata(3)["task"] == "source task"
+    torch.testing.assert_close(batch["actions"], torch.stack([
+        torch.full((2, 3), float(ep)) for ep in range(4)]))
+
+
+def test_fulltrain_config_includes_unannotated_episodes():
+    root = Path(__file__).resolve().parents[1]
+    cfg = yaml.safe_load((root / "configs/vla/package_ecot_full.yaml").read_text())
+    assert cfg["data"]["ecot_annotations_only"] is False
+    assert cfg["data"]["exclude_regrasp"] is False
+    assert Path(cfg["data"]["train_path"]).name == "train"
+    assert cfg["train"]["ecot_aux_supervision"] is True
+    assert cfg["train"]["output_dir"] == "output/newarti_ecot_fulltrain"
+
+
 def test_training_config_rejects_frozen_backbones():
     from tasks.vla.train_lingbotvla import validate_training_setup
 

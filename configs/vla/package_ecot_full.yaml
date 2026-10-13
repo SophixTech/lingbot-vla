@@ -1,4 +1,5 @@
-# Two original orientation prompts + ECOT heads/conditioning + full fine-tuning.
+# All training episodes + masked ECOT supervision + full fine-tuning.
+# Keep the original two orientation prompts. Missing ECOT labels skip auxiliary losses.
 # Run from this worktree's root. Adjust absolute data/model paths for the server.
 # Batch capacity for full fine-tuning is not validated.
 model:
@@ -11,7 +12,7 @@ data:
   robot_config_root: configs/robot_configs
   train_path: /home/bjtc/Sophix/datasets/marked_9_1_0922/train
   ecot_annotations_path: /home/bjtc/Sophix/datasets/ecot_annotations/ecot1003
-  ecot_annotations_only: true
+  ecot_annotations_only: false
   exclude_regrasp: false
   joints:
     - arm.position: 14
@@ -24,7 +25,7 @@ data:
   norm_type: bounds_99
   norm_stats_file: /home/bjtc/Sophix/datasets/marked_9_1_0922/train_stats/norm_stats.json
 train:
-  output_dir: output/newarti_ecot_full
+  output_dir: output/newarti_ecot_fulltrain
   data_parallel_mode: fsdp2
   enable_full_shard: true
   module_fsdp_enable: true

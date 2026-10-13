@@ -89,10 +89,10 @@
     "reference": "local worktrees/branch-ecot, including action conditioning and visibility extensions",
     "dataset": "marked_9_1_0922/train with ecot_annotations/ecot1003 sidecars",
     "normalization": "bounds_99 using marked_9_1_0922/train_stats/norm_stats.json; overrides the baseline normalization above",
-    "selection": "annotated episodes only, both orientations, no regrasp exclusion",
+    "selection": "all episodes in the existing train split, with or without ECOT annotations, both orientations, no regrasp exclusion",
     "auxiliary_targets": ["subtask", "bbox", "grasp_label_up", "bbox_visibility"],
     "null_bbox": "negative visibility target; excluded from box regression",
-    "unannotated": "ignore auxiliary losses, including visibility",
+    "unannotated": "train action loss; mask all four annotation-based auxiliary losses, including visibility; keep prediction-based action conditioning",
     "action_condition": "11-dimensional differentiable prediction vector; no ground-truth targets supplied to action conditioning",
     "loss": "L1 flow matching + 0.1 subtask CE + 0.05 visible-box Smooth L1 + 0.1 orientation CE + 0.1 visibility BCE",
     "trainable": "vision encoder, VLM, action expert, projections, and all ECOT heads"

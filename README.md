@@ -42,7 +42,7 @@ data from 9 popular dual-arm robot configurations.
 ---
 
 
-## Two-prompt ECOT full fine-tuning (`zzc-dev-newarti`)
+## Full-data ECOT fine-tuning (`zzc-dev-newarti-fulltrain`)
 
 This branch keeps the original two package instructions, selected by the initial
 `grasp_label_up` annotation:
@@ -80,10 +80,25 @@ L = L1 flow matching
 ```
 
 `bbox=null` is a negative visibility target and is excluded from box regression.
-Unannotated samples, when enabled, have ignored auxiliary targets (`-100`), not
-negative visibility labels. `ecot_annotations_only: true` selects the same
-annotated training episodes as ECOT; this means full **parameter** fine-tuning,
-not loading unannotated episodes. No dataset files are rewritten.
+`ecot_annotations_only: false` and `exclude_regrasp: false` include every episode
+in the existing training split, including episodes without ECOT sidecars. The
+held-out test split remains excluded. No dataset files are rewritten.
+
+All samples contribute to the action loss. Missing ECOT annotations produce
+`-100` subtask/orientation targets and `bbox_valid=false`, masking all four
+auxiliary losses, including visibility. Missing annotations are not negative
+visibility labels. Each auxiliary loss averages over its valid targets within
+the batch; an entirely unannotated batch has finite, zero auxiliary loss.
+With gradient accumulation, unannotated microbatches still occupy accumulation
+steps, so auxiliary supervision is less frequent than in the annotated-only run.
+
+Predicted ECOT action conditioning remains active for every sample, just as at
+inference. It never reads ground-truth annotations. Action gradients can still
+update the ECOT heads through this predicted condition; only annotation-based
+supervision is masked. Original episode labels continue to select the two
+prompts even when ECOT sidecars are absent; without either label source, the
+loader retains the dataset task. Normalization and the training/test split are
+unchanged.
 
 Use `configs/vla/package_ecot_full.yaml`. It initializes from the base model,
 uses the ECOT dataset and its train-only normalization statistics, and trains
@@ -102,7 +117,7 @@ bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_ecot_full.yaml
 ```
 
 Set the model/data paths for the target server. Outputs go to
-`output/newarti_ecot_full`. FSDP2 sharding and gradient checkpointing are enabled;
+`output/newarti_ecot_fulltrain`. FSDP2 sharding and gradient checkpointing are enabled;
 the candidate batch is one sample per GPU with 16 accumulation steps. Full-model
 GPU memory capacity must be checked on the target hardware before a long run.
 The older `package_posttrain.yaml` remains the non-ECOT baseline.
@@ -115,8 +130,19 @@ the Qwen backbones and vision encoder, and flex for joint language/action
 attention. There is no added eager fallback. The reduced-size model training
 and inference tests require CUDA and FlashAttention2 and skip without them.
 
-After restoring these settings: 9 tests pass and 2 GPU integration cases skip
-in the current environment.
+Full-data regression validation: 14 tests pass and 2 GPU integration cases skip
+in the local training environment. Tests cover mixed and entirely unannotated
+batches, zero auxiliary gradients for ignored samples, action gradients for all
+samples, and auxiliary loss normalization over annotated samples only.
+
+The current local training metadata contains 949 episodes and 635,213 frames:
+609 episodes have ECOT sidecars and 340 do not. A scan of all 949 parquet files
+found one existing data inconsistency: `train/data/chunk-000/file-002.parquet`
+contains 603 rows with `episode_index=0`, while its metadata assigns episode 2.
+LeRobot therefore rejects full-data loading because episode 2 appears missing.
+This shared dataset has not been modified. Repair or regenerate that file from
+its source before starting full-data training; do not bypass the consistency
+check, since incorrect episode IDs can misalign actions, videos, and labels.
 
 Earlier validation (before restoring the original attention settings) passed
 11 tests, including a CPU optimizer step and inference. Those results do not
