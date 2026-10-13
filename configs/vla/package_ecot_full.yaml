@@ -1,7 +1,9 @@
 # All training episodes + masked ECOT supervision + full fine-tuning.
 # Keep the original two orientation prompts. Missing ECOT labels skip auxiliary losses.
 # Run from this worktree's root. Adjust absolute data/model paths for the server.
-# Batch capacity for full fine-tuning is not validated.
+# Shared recipe matches ORI-lingbo-vla-fullprompt/package_posttrain.yaml.
+# Keep ECOT dataset identity, annotation selection, and a separate output directory.
+# Batch 32 per GPU with accumulation 4; GPU capacity is not validated.
 model:
   model_path: /home/bjtc/Sophix/models/lingbot-vla-4b
   config_path: /home/bjtc/Sophix/models/lingbot-vla-4b
@@ -21,15 +23,15 @@ data:
     - camera_top
     - camera_wrist_left
     - camera_wrist_right
-  num_workers: 0
-  norm_type: bounds_99
+  num_workers: 8
+  norm_type: meanstd
   norm_stats_file: /home/bjtc/Sophix/datasets/marked_9_1_0922/train_stats/norm_stats.json
 train:
   output_dir: output/newarti_ecot_fulltrain
   data_parallel_mode: fsdp2
-  enable_full_shard: true
+  enable_full_shard: false
   module_fsdp_enable: true
-  use_compile: false
+  use_compile: true
   rmpad: false
   rmpad_with_pos_ids: false
   ulysses_parallel_size: 1
@@ -43,17 +45,17 @@ train:
   chunk_size: 50
   lr: 5.0e-05
   lr_decay_style: constant
-  micro_batch_size: 1
-  gradient_accumulation_steps: 16
-  max_steps: 10000
+  micro_batch_size: 32
+  gradient_accumulation_steps: 4
+  max_steps: 40000
   ckpt_manager: dcp
-  save_steps: 1000
+  save_steps: 10000
   save_epochs: 0
   enable_fp32: true
   enable_mixed_precision: true
   enable_gradient_checkpointing: true
   enable_resume: false
-  loss_type: L1_fm
+  loss_type: fm
   ecot_aux_supervision: true
   ecot_action_conditioning: true
   ecot_visibility: true
