@@ -1,4 +1,4 @@
-"""Two-prompt data flow and a full-parameter training step with tiny real Qwen models."""
+"""Unified-prompt data flow and a full-parameter training step with tiny real Qwen models."""
 
 import json
 from pathlib import Path
@@ -10,7 +10,7 @@ import torch
 import yaml
 
 from lingbotvla.data.data_transform import VLADataCollatorWithPacking
-from lingbotvla.data.vla_data.base_dataset import VLADataset
+from lingbotvla.data.vla_data.base_dataset import PACKAGE_TASK_PROMPT, VLADataset
 from lingbotvla.data.vla_data.ecot_annotations import ECOTAnnotations
 from lingbotvla.models.vla.pi0 import modeling_lingbot_vla as modeling
 from lingbotvla.optim import build_optimizer
@@ -45,7 +45,7 @@ def annotations(tmp_path):
     return ECOTAnnotations(tmp_path, "train", source)
 
 
-def test_two_prompts_and_sidecar_targets_survive_collation(annotations):
+def test_unified_prompt_and_sidecar_targets_survive_collation(annotations):
     dataset = VLADataset.__new__(VLADataset)
     dataset.ecot_annotations = annotations
     dataset.episode_labels = {}  # Sidecars also work without the older labels file.
@@ -55,12 +55,7 @@ def test_two_prompts_and_sidecar_targets_survive_collation(annotations):
     ]
     dataset.feature_transform = SimpleNamespace(apply=lambda item: item)
     items = [dataset.getdata(i) for i in range(4)]
-    assert items[0]["task"] == items[1]["task"] == (
-        "Pick the soft package from the box and place it on the conveyor belt, keeping the label facing up."
-    )
-    assert items[2]["task"] == items[3]["task"] == (
-        "Pick the soft package from the box, flip it so the label faces up, and place it on the conveyor belt."
-    )
+    assert all(item["task"] == PACKAGE_TASK_PROMPT for item in items)
     batch = VLADataCollatorWithPacking()(items)
     assert batch["ecot_subtask_target"].tolist() == [0, 1, 0, 2]
     assert batch["ecot_label_target"].tolist() == [1, 1, 0, 0]

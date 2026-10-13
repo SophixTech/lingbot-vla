@@ -1,5 +1,5 @@
-# M06: main mixed_conditioned data interface + official full-finetuning recipe.
-# Loader is copied verbatim from main: episode labels select keep-up/flip prompts.
+# Full-prompt baseline: one instruction refers to initial label orientation in the box.
+# Keep the mixed dataset and official full-finetuning recipe; no ECOT auxiliary losses.
 # H100 capacity NOT validated. Candidate: 2 GPUs * batch 32 * accumulation 4 = 256.
 # For 1 GPU, accumulation 8 preserves batch 256 only IF micro_batch_size 32 fits.
 # Set paths for the destination server; enable_resume only for an intended resume.
@@ -10,7 +10,7 @@ model:
 data:
   datasets_type: vla
   data_name: package_a2d
-  robot_config_root: /home/bjtc/Sophix/lingbot-vla/ORI-lingbot-vla/configs/robot_configs
+  robot_config_root: configs/robot_configs
   train_path: /home/bjtc/Sophix/datasets/mixed_conditioned_data/train
   exclude_regrasp: false
   joints:
@@ -24,7 +24,7 @@ data:
   norm_type: meanstd
   norm_stats_file: /home/bjtc/Sophix/datasets/mixed_conditioned_data/train_stats/norm_stats.json
 train:
-  output_dir: /home/bjtc/Sophix/lingbot-vla/ORI-lingbot-vla/output/mixed_conditioned_full
+  output_dir: output/newarti_mixed_fullprompt
   data_parallel_mode: fsdp2
   enable_full_shard: false
   module_fsdp_enable: true

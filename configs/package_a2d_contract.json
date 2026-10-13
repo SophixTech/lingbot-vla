@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "robot": "package_a2d",
-  "description": "Human-readable interface record. Training reads the robot YAML and the selected training YAML, not this JSON. package_posttrain.yaml is the original baseline; package_ecot_full.yaml adds ECOT supervision and full fine-tuning as described below.",
+  "description": "Human-readable interface record. Training reads the robot YAML and the selected training YAML, not this JSON. package_posttrain.yaml is the unified-prompt non-ECOT baseline; package_ecot_full.yaml adds ECOT supervision and full fine-tuning as described below.",
   "robot_config": "configs/robot_configs/package_a2d.yaml",
   "layout": {
     "state_key": "observation.state",
@@ -71,18 +71,18 @@
     "status": "reuse_existing_mixed_conditioned_train_statistics"
   },
   "task": {
-    "instruction": "Pick a soft package from the box, orient its label upward, and place it on the conveyor belt.",
-    "source": "VLADataset.getdata: ECOT sidecar when present, otherwise the original episode annotation",
-    "policy": "Preserve two prompts: grasp_label_up true selects keep-up; false selects flip. ECOT and original annotations must agree. If neither record exists, retain the dataset task.",
+    "instruction": "Take out the top soft package from the box. Based on its initial label orientation in the box before grasping: if the label initially faces up, place the package directly on the conveyor belt; if it initially faces down, flip the package so the label faces up before placing it on the conveyor belt.",
+    "source": "VLADataset.getdata: PACKAGE_TASK_PROMPT, adapted from branch-ecot with explicit pre-grasp orientation",
+    "policy": "One instruction for all episodes, including those without annotation records. Both label orientations train together; orientation is inferred from observations.",
     "annotations": {
       "existing_field": "extra_labels.self_annotation.grasp_label_up",
       "declared_semantics": "pre_grasp_label_visibility",
-      "usage": "orientation_conditioned_prompt_selection_and_optional_ecot_label_supervision",
+      "usage": "optional ECOT label supervision and source consistency checks; never used to select the prompt",
       "invisible_does_not_imply_requires_flip": true,
       "category_is_not_verified_task_outcome": true,
       "regrasp_is_not_automatically_invalid": true
     },
-    "status": "two_prompts_preserved_with_ecot_supervision"
+    "status": "unified_fullprompt_with_ecot_supervision"
   },
   "ecot_full_finetuning": {
     "training_config": "configs/vla/package_ecot_full.yaml",

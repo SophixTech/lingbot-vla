@@ -1,4 +1,4 @@
-# Two original orientation prompts + ECOT heads/conditioning + full fine-tuning.
+# One unified full prompt + ECOT heads/conditioning + full fine-tuning.
 # Run from this worktree's root. Adjust absolute data/model paths for the server.
 # Batch capacity for full fine-tuning is not validated.
 model:
@@ -24,7 +24,7 @@ data:
   norm_type: bounds_99
   norm_stats_file: /home/bjtc/Sophix/datasets/marked_9_1_0922/train_stats/norm_stats.json
 train:
-  output_dir: output/newarti_ecot_full
+  output_dir: output/newarti_ecot_fullprompt
   data_parallel_mode: fsdp2
   enable_full_shard: true
   module_fsdp_enable: true

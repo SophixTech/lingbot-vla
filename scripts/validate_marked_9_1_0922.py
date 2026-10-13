@@ -9,7 +9,7 @@ import pyarrow.parquet as pq
 import torch
 import yaml
 
-from lingbotvla.data.vla_data.base_dataset import VLADataset
+from lingbotvla.data.vla_data.base_dataset import PACKAGE_TASK_PROMPT, VLADataset
 from lingbotvla.models import build_processor
 from prepare_marked_9_1_0922 import DEST, SOURCE, digest, read_jsonl, vector, write_json
 
@@ -21,6 +21,8 @@ assert Path(cfg['data']['train_path']) == DEST/'train', 'Training must use only 
 assert Path(cfg['data']['norm_stats_file']) == DEST/'train_stats/norm_stats.json'
 assert cfg['data']['exclude_regrasp'] is False, 'Keep the existing full-data split.'
 robot_config_root = Path(cfg['data']['robot_config_root'])
+if not robot_config_root.is_absolute():
+    robot_config_root = PROJECT_ROOT / robot_config_root
 assert robot_config_root.is_absolute() and robot_config_root.is_dir()
 manifest = json.loads((DEST/'split_manifest.json').read_text())
 assert manifest['dataset_name'] == DEST.name
@@ -70,7 +72,7 @@ for name in ('train','test'):
             np.testing.assert_array_equal(got['action.effector.position'].numpy(), a[wanted,14:])
             np.testing.assert_array_equal(got['observation.state.arm.position'].numpy(), s[f,:14])
             np.testing.assert_array_equal(got['action_is_pad'].numpy(),np.arange(50)+f>=len(tab))
-            assert ('flip it' in got['task']) == (not m['grasp_label_up'])
+            assert got['task'] == PACKAGE_TASK_PROMPT
             anchors += 1
         for key in ds.dataset.meta.video_keys:
             path = root/ds.dataset.meta.get_video_file_path(ep,key)
@@ -93,7 +95,7 @@ for name in ('train','test'):
             for k in ('images','actions','state'):
                 assert torch.isfinite(batch[k]).all()
             text = processor.tokenizer.decode(batch['lang_tokens'][batch['lang_masks']].tolist())
-            assert ('flip it' in text) == (not mapping[ep]['grasp_label_up'])
+            assert text == f'<bos>{PACKAGE_TASK_PROMPT}\n'
             sampled.append({'episode':ep,'frame':f,'label_up':mapping[ep]['grasp_label_up']})
     report['splits'][name] = {'episodes':len(mapping),'frames':len(ds),'numeric_anchors_verified':anchors,'video_headers_verified':videos,'normalized_image_language_samples':sampled}
 assert not source_ids['train'] & source_ids['test']

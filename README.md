@@ -42,24 +42,21 @@ data from 9 popular dual-arm robot configurations.
 ---
 
 
-## Two-prompt ECOT full fine-tuning (`zzc-dev-newarti`)
+## Unified-prompt ECOT full fine-tuning (`zzc-dev-newarti-fullprompt`)
 
-This branch keeps the original two package instructions, selected by the initial
-`grasp_label_up` annotation:
+All training episodes use the same instruction as `ORI-lingbo-vla-fullprompt`,
+regardless of `grasp_label_up` or missing annotation records:
 
-- `true`: "Pick the soft package from the box and place it on the conveyor belt, keeping the label facing up."
-- `false`: "Pick the soft package from the box, flip it so the label faces up, and place it on the conveyor belt."
+> Take out the top soft package from the box. Based on its initial label orientation in the box before grasping: if the label initially faces up, place the package directly on the conveyor belt; if it initially faces down, flip the package so the label faces up before placing it on the conveyor belt.
 
-The ECOT architecture and sidecar format follow the local `worktrees/branch-ecot`
-implementation, including its action conditioning and visibility heads. ECOT
-records provide `subtask` intervals, per-frame `bbox` (`xyxy_pixels` or `null`),
-and the episode's `grasp_label_up`. `annotations.jsonl` maps each record to a
-source split, episode, image size, and frame count. The loader checks source
-identity and consistency with the original orientation annotation. If the
-original episode label is absent, the ECOT record still selects the correct
-prompt. Evaluation and deployment must also supply the appropriate one of these
-two instructions; the auxiliary label head therefore is not a prompt-independent
-orientation benchmark.
+Use exactly this instruction for evaluation and deployment too. The loader
+assigns it before feature transformation. Episode labels no longer select the
+prompt; ECOT auxiliary supervision and action conditioning remain enabled.
+The existing dataset split, episode selection, and normalization are preserved.
+
+The ECOT sidecars provide subtask intervals, per-frame bounding boxes, and the
+initial label orientation. The loader retains source identity and annotation
+consistency checks. No dataset files are rewritten.
 
 The model predicts four subtask logits, two orientation logits, four normalized
 box coordinates, and one visibility logit from pooled VLM prefix features.
@@ -102,10 +99,10 @@ bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_ecot_full.yaml
 ```
 
 Set the model/data paths for the target server. Outputs go to
-`output/newarti_ecot_full`. FSDP2 sharding and gradient checkpointing are enabled;
+`output/newarti_ecot_fullprompt`. FSDP2 sharding and gradient checkpointing are enabled;
 the candidate batch is one sample per GPU with 16 accumulation steps. Full-model
 GPU memory capacity must be checked on the target hardware before a long run.
-The older `package_posttrain.yaml` remains the non-ECOT baseline.
+`package_posttrain.yaml` is the non-ECOT baseline and also uses the unified prompt.
 
 Run the regression tests with `python -m pytest tests -q`. Local-data integration
 checks require the paths in `package_ecot_full.yaml` to exist.
@@ -115,8 +112,9 @@ the Qwen backbones and vision encoder, and flex for joint language/action
 attention. There is no added eager fallback. The reduced-size model training
 and inference tests require CUDA and FlashAttention2 and skip without them.
 
-After restoring these settings: 9 tests pass and 2 GPU integration cases skip
-in the current environment.
+Unified-prompt regression validation: 11 tests pass and 2 GPU integration cases
+skip in the local training environment. The complete instruction uses 64 tokens
+with the configured Qwen tokenizer, within the 72-token limit.
 
 Earlier validation (before restoring the original attention settings) passed
 11 tests, including a CPU optimizer step and inference. Those results do not
