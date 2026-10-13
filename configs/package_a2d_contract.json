@@ -88,13 +88,13 @@
     "training_config": "configs/vla/package_ecot_full.yaml",
     "reference": "local worktrees/branch-ecot, including action conditioning and visibility extensions",
     "dataset": "marked_9_1_0922/train with ecot_annotations/ecot1003 sidecars",
-    "normalization": "bounds_99 using marked_9_1_0922/train_stats/norm_stats.json; overrides the baseline normalization above",
+    "normalization": "meanstd using marked_9_1_0922/train_stats/norm_stats.json; same normalization method as the full-prompt baseline, with ECOT dataset statistics",
     "selection": "annotated episodes only, both orientations, no regrasp exclusion",
     "auxiliary_targets": ["subtask", "bbox", "grasp_label_up", "bbox_visibility"],
     "null_bbox": "negative visibility target; excluded from box regression",
     "unannotated": "ignore auxiliary losses, including visibility",
     "action_condition": "11-dimensional differentiable prediction vector; no ground-truth targets supplied to action conditioning",
-    "loss": "L1 flow matching + 0.1 subtask CE + 0.05 visible-box Smooth L1 + 0.1 orientation CE + 0.1 visibility BCE",
+    "loss": "MSE flow matching + 0.1 subtask CE + 0.05 visible-box Smooth L1 + 0.1 orientation CE + 0.1 visibility BCE",
     "trainable": "vision encoder, VLM, action expert, projections, and all ECOT heads"
   },
   "dataset": {
