@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "robot": "package_a2d",
-  "description": "Human-readable interface record. Training reads the robot YAML and package_posttrain YAML, not this JSON.",
+  "description": "Human-readable interface record. Training reads the robot YAML and the selected training YAML, not this JSON. package_posttrain.yaml is the original baseline; package_ecot_full.yaml adds ECOT supervision and full fine-tuning as described below.",
   "robot_config": "configs/robot_configs/package_a2d.yaml",
   "layout": {
     "state_key": "observation.state",
@@ -72,17 +72,30 @@
   },
   "task": {
     "instruction": "Pick a soft package from the box, orient its label upward, and place it on the conveyor belt.",
-    "source": "main VLADataset.getdata: episode annotation overrides LeRobot task table when a label record exists",
-    "policy": "Preserve main behavior: grasp_label_up true selects keep-up prompt; false selects flip prompt; missing episode record retains dataset task.",
+    "source": "VLADataset.getdata: ECOT sidecar when present, otherwise the original episode annotation",
+    "policy": "Preserve two prompts: grasp_label_up true selects keep-up; false selects flip. ECOT and original annotations must agree. If neither record exists, retain the dataset task.",
     "annotations": {
       "existing_field": "extra_labels.self_annotation.grasp_label_up",
       "declared_semantics": "pre_grasp_label_visibility",
-      "usage": "main_compatible_episode_conditioned_prompt_selection",
+      "usage": "orientation_conditioned_prompt_selection_and_optional_ecot_label_supervision",
       "invisible_does_not_imply_requires_flip": true,
       "category_is_not_verified_task_outcome": true,
       "regrasp_is_not_automatically_invalid": true
     },
-    "status": "main_prompt_conditioning_migrated_M05"
+    "status": "two_prompts_preserved_with_ecot_supervision"
+  },
+  "ecot_full_finetuning": {
+    "training_config": "configs/vla/package_ecot_full.yaml",
+    "reference": "local worktrees/branch-ecot, including action conditioning and visibility extensions",
+    "dataset": "marked_9_1_0922/train with ecot_annotations/ecot1003 sidecars",
+    "normalization": "bounds_99 using marked_9_1_0922/train_stats/norm_stats.json; overrides the baseline normalization above",
+    "selection": "annotated episodes only, both orientations, no regrasp exclusion",
+    "auxiliary_targets": ["subtask", "bbox", "grasp_label_up", "bbox_visibility"],
+    "null_bbox": "negative visibility target; excluded from box regression",
+    "unannotated": "ignore auxiliary losses, including visibility",
+    "action_condition": "11-dimensional differentiable prediction vector; no ground-truth targets supplied to action conditioning",
+    "loss": "L1 flow matching + 0.1 subtask CE + 0.05 visible-box Smooth L1 + 0.1 orientation CE + 0.1 visibility BCE",
+    "trainable": "vision encoder, VLM, action expert, projections, and all ECOT heads"
   },
   "dataset": {
     "format": "LeRobot v3.0",

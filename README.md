@@ -42,6 +42,92 @@ data from 9 popular dual-arm robot configurations.
 ---
 
 
+## Two-prompt ECOT full fine-tuning (`zzc-dev-newarti`)
+
+This branch keeps the original two package instructions, selected by the initial
+`grasp_label_up` annotation:
+
+- `true`: "Pick the soft package from the box and place it on the conveyor belt, keeping the label facing up."
+- `false`: "Pick the soft package from the box, flip it so the label faces up, and place it on the conveyor belt."
+
+The ECOT architecture and sidecar format follow the local `worktrees/branch-ecot`
+implementation, including its action conditioning and visibility heads. ECOT
+records provide `subtask` intervals, per-frame `bbox` (`xyxy_pixels` or `null`),
+and the episode's `grasp_label_up`. `annotations.jsonl` maps each record to a
+source split, episode, image size, and frame count. The loader checks source
+identity and consistency with the original orientation annotation. If the
+original episode label is absent, the ECOT record still selects the correct
+prompt. Evaluation and deployment must also supply the appropriate one of these
+two instructions; the auxiliary label head therefore is not a prompt-independent
+orientation benchmark.
+
+The model predicts four subtask logits, two orientation logits, four normalized
+box coordinates, and one visibility logit from pooled VLM prefix features.
+The four subtask probabilities, two orientation probabilities, visibility-gated
+box coordinates, and visibility probability form an 11-dimensional vector.
+A learned projection adds this vector to the action expert's input in both
+training and inference. It uses predictions, not ground-truth labels, and retains
+gradients from the action loss through the heads into the VLM.
+
+The default objective matches ECOT:
+
+```text
+L = L1 flow matching
+  + 0.1 * subtask cross entropy
+  + 0.05 * visible-box Smooth L1
+  + 0.1 * initial-orientation cross entropy
+  + 0.1 * visibility BCE
+```
+
+`bbox=null` is a negative visibility target and is excluded from box regression.
+Unannotated samples, when enabled, have ignored auxiliary targets (`-100`), not
+negative visibility labels. `ecot_annotations_only: true` selects the same
+annotated training episodes as ECOT; this means full **parameter** fine-tuning,
+not loading unannotated episodes. No dataset files are rewritten.
+
+Use `configs/vla/package_ecot_full.yaml`. It initializes from the base model,
+uses the ECOT dataset and its train-only normalization statistics, and trains
+the vision encoder, VLM, action expert, state projection, and all ECOT heads.
+The training entry rejects frozen-backbone ECOT configurations.
+New heads are initialized when loading the base checkpoint;
+missing backbone weights remain an error. Checkpoints save the heads in model
+weights and the ECOT settings in `lingbotvla_cli.yaml`; the existing deployment
+loader reads this YAML to reconstruct the architecture.
+
+With the training environment activated, run from this worktree:
+
+```bash
+export PYTHONPATH="$PWD${PYTHONPATH:+:$PYTHONPATH}"
+bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_ecot_full.yaml
+```
+
+Set the model/data paths for the target server. Outputs go to
+`output/newarti_ecot_full`. FSDP2 sharding and gradient checkpointing are enabled;
+the candidate batch is one sample per GPU with 16 accumulation steps. Full-model
+GPU memory capacity must be checked on the target hardware before a long run.
+The older `package_posttrain.yaml` remains the non-ECOT baseline.
+
+Run the regression tests with `python -m pytest tests -q`. Local-data integration
+checks require the paths in `package_ecot_full.yaml` to exist.
+
+Attention now matches the original LingBot implementation: FlashAttention2 for
+the Qwen backbones and vision encoder, and flex for joint language/action
+attention. There is no added eager fallback. The reduced-size model training
+and inference tests require CUDA and FlashAttention2 and skip without them.
+
+After restoring these settings: 9 tests pass and 2 GPU integration cases skip
+in the current environment.
+
+Earlier validation (before restoring the original attention settings) passed
+11 tests, including a CPU optimizer step and inference. Those results do not
+validate the restored GPU attention path. Earlier real-data checks covered
+609 annotated episodes (235 label-up, 374 label-down), 406,455 frames, and both
+prompt classes. Earlier meta-device and checkpoint checks confirmed
+4,197,473,878 trainable parameters and compatible base-checkpoint shapes.
+A full-size GPU training step and distributed memory capacity remain unvalidated.
+
+---
+
 ## 🛠️ Installation
 Requirements
  - Python 3.12.3

@@ -263,13 +263,43 @@ def load_model_weights(
     for name, buffer in buffer_dict.items():
         _dispatch_buffer(model, name, buffer)
     if post_training:
-        assert len(parameter_names) == 0, f"Missing {parameter_names} during Post-Training. This is not allowed!!!"
+        missing_pretrained = parameter_names
+        if getattr(model.config, "ecot_aux_supervision", False):
+            missing_pretrained = {
+                name for name in parameter_names
+                if not name.startswith((
+                    "model.ecot_subtask_head.", "model.ecot_bbox_head.", "model.ecot_label_head.", "model.ecot_condition_proj.", "model.ecot_visibility_head."
+                ))
+            }
+        assert not missing_pretrained, f"Missing {missing_pretrained} during Post-Training. This is not allowed!!!"
     if len(parameter_names) > 0:
         if load_vlm_only:
             assert all('.paligemma.' not in name for name in parameter_names) or all('.qwenvl.' not in name for name in parameter_names), \
                 "Parameters in VLM  are not loaded when PreTraining!!!"
         logger.info_rank0(f"Find missing key(s) in state dict: {parameter_names}, initialize them.")
+        ecot_heads = ("ecot_subtask_head", "ecot_bbox_head", "ecot_label_head", "ecot_condition_proj", "ecot_visibility_head")
+        missing_ecot_heads = {
+            head for head in ecot_heads
+            if any(name.startswith(f"model.{head}.") for name in parameter_names)
+        }
+        for head in missing_ecot_heads:
+            module = getattr(model.model, head)
+            # A checkpoint may contain part of a head. Initialize its missing
+            # tensors without overwriting the parameters that were loaded.
+            loaded = {
+                name: parameter.detach().clone()
+                for name, parameter in module.named_parameters()
+                if f"model.{head}.{name}" not in parameter_names
+            }
+            for layer in module.modules():
+                if layer is not module and hasattr(layer, "reset_parameters"):
+                    layer.reset_parameters()
+            for name, parameter in module.named_parameters():
+                if name in loaded:
+                    parameter.copy_(loaded[name])
         for name in parameter_names:
+            if any(name.startswith(f"model.{head}.") for head in missing_ecot_heads):
+                continue
             _init_parameter(model, name)
 
     # we should tie embeddings after loading weights because to_empty() leads to untied weights,

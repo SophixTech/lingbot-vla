@@ -1,0 +1,62 @@
+# Two original orientation prompts + ECOT heads/conditioning + full fine-tuning.
+# Run from this worktree's root. Adjust absolute data/model paths for the server.
+# Batch capacity for full fine-tuning is not validated.
+model:
+  model_path: /home/bjtc/Sophix/models/lingbot-vla-4b
+  config_path: /home/bjtc/Sophix/models/lingbot-vla-4b
+  tokenizer_path: /home/bjtc/Sophix/models/Qwen2.5-VL-3B-Instruct-tokenizer
+data:
+  datasets_type: vla
+  data_name: package_a2d
+  robot_config_root: configs/robot_configs
+  train_path: /home/bjtc/Sophix/datasets/marked_9_1_0922/train
+  ecot_annotations_path: /home/bjtc/Sophix/datasets/ecot_annotations/ecot1003
+  ecot_annotations_only: true
+  exclude_regrasp: false
+  joints:
+    - arm.position: 14
+    - effector.position: 2
+  cameras:
+    - camera_top
+    - camera_wrist_left
+    - camera_wrist_right
+  num_workers: 0
+  norm_type: bounds_99
+  norm_stats_file: /home/bjtc/Sophix/datasets/marked_9_1_0922/train_stats/norm_stats.json
+train:
+  output_dir: output/newarti_ecot_full
+  data_parallel_mode: fsdp2
+  enable_full_shard: true
+  module_fsdp_enable: true
+  use_compile: false
+  rmpad: false
+  rmpad_with_pos_ids: false
+  ulysses_parallel_size: 1
+  freeze_vision_encoder: false
+  freeze_vit: false
+  train_expert_only: false
+  train_state_proj: true
+  tokenizer_max_length: 72
+  max_action_dim: 75
+  max_state_dim: 75
+  chunk_size: 50
+  lr: 5.0e-05
+  lr_decay_style: constant
+  micro_batch_size: 1
+  gradient_accumulation_steps: 16
+  max_steps: 10000
+  ckpt_manager: dcp
+  save_steps: 1000
+  save_epochs: 0
+  enable_fp32: true
+  enable_mixed_precision: true
+  enable_gradient_checkpointing: true
+  enable_resume: false
+  loss_type: L1_fm
+  ecot_aux_supervision: true
+  ecot_action_conditioning: true
+  ecot_visibility: true
+  ecot_subtask_loss_weight: 0.1
+  ecot_bbox_loss_weight: 0.05
+  ecot_label_loss_weight: 0.1
+  ecot_visibility_loss_weight: 0.1

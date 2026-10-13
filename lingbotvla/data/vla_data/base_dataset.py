@@ -31,6 +31,7 @@ from lerobot.datasets.lerobot_dataset import LeRobotDataset as BaseLeRobotDatase
 from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
 
 from .utils import FeatureTransform
+from .ecot_annotations import ECOTAnnotations
 
 
 class LeRobotDataset(BaseLeRobotDataset):
@@ -125,6 +126,18 @@ class VLADataset(Dataset):
         self.chunk_size = chunk_size
         self.data_name = data_name
 
+        self.ecot_annotations = None
+        annotations_path = getattr(data_config, "ecot_annotations_path", None)
+        if annotations_path:
+            source = Path(repo_id)
+            if source.name not in {"train", "test"}:
+                raise ValueError("ECOT datasets must use a train/ or test/ split directory")
+            self.ecot_annotations = ECOTAnnotations(
+                annotations_path, split=source.name, source_dataset=source.parent,
+            )
+        elif getattr(data_config, "ecot_annotations_only", False):
+            raise ValueError("ecot_annotations_only requires ecot_annotations_path")
+
         # The annotation run stores business labels separately from the
         # LeRobot action data.  Keep only non-regrasp demonstrations for the
         # normal behavior-cloning run, while retaining both initial label
@@ -140,6 +153,22 @@ class VLADataset(Dataset):
             ep for ep, record in sorted(self.episode_labels.items())
             if int(record.get("extra_labels", {}).get("self_annotation", {}).get("had_regrasp", 0)) == 0
         ] if self.episode_labels and getattr(data_config, 'exclude_regrasp', True) else None
+
+        if self.ecot_annotations is not None:
+            # Prompt selection and auxiliary label supervision must agree.
+            for ep in self.ecot_annotations.episode_indices:
+                source_record = self.episode_labels.get(ep)
+                if source_record is not None:
+                    source_label = source_record["extra_labels"]["self_annotation"]["grasp_label_up"]
+                    if source_label != self.ecot_annotations.get(ep)["grasp_label_up"]:
+                        raise ValueError(f"Episode {ep}: source and ECOT grasp_label_up disagree")
+            if getattr(data_config, "ecot_annotations_only", False):
+                annotated = set(self.ecot_annotations.episode_indices)
+                self.selected_episodes = sorted(
+                    annotated if self.selected_episodes is None else annotated.intersection(self.selected_episodes)
+                )
+                if not self.selected_episodes:
+                    raise ValueError("No ECOT-annotated episodes remain in this split")
 
         if do_nomalize:
             data_config.max_state_dim = self.config.max_state_dim
@@ -177,7 +206,7 @@ class VLADataset(Dataset):
                 raise
             self.dataset = LeRobotDataset(**dataset_kwargs, download_videos=load_image)
 
-        if not getattr(data_config, 'exclude_regrasp', True):
+        if self.selected_episodes is None:
             # Full exports can exceed three-digit file numbering: lexical file
             # order places file-1000 before file-101. Action queries use original
             # global indices, so full-table row positions must match those IDs.
@@ -212,13 +241,25 @@ class VLADataset(Dataset):
         # orientation: false requires a flip, true does not.
         ep_idx = int(item["episode_index"].item())
         record = self.episode_labels.get(ep_idx)
-        if record is not None:
-            label_up = bool(record["extra_labels"]["self_annotation"]["grasp_label_up"])
+        ecot_record = self.ecot_annotations.get(ep_idx) if self.ecot_annotations is not None else None
+        if ecot_record is not None or record is not None:
+            label_up = (
+                ecot_record["grasp_label_up"] if ecot_record is not None
+                else bool(record["extra_labels"]["self_annotation"]["grasp_label_up"])
+            )
             item["task"] = (
                 "Pick the soft package from the box and place it on the conveyor belt, keeping the label facing up."
                 if label_up else
                 "Pick the soft package from the box, flip it so the label faces up, and place it on the conveyor belt."
             )
+        if self.ecot_annotations is not None:
+            subtask, bbox, bbox_valid, label_up = self.ecot_annotations.target(
+                ep_idx, int(item["frame_index"].item()),
+            )
+            item["ecot_subtask_target"] = torch.tensor(subtask, dtype=torch.long)
+            item["ecot_bbox_target"] = torch.tensor(bbox, dtype=torch.float32)
+            item["ecot_bbox_valid"] = torch.tensor(bbox_valid, dtype=torch.bool)
+            item["ecot_label_target"] = torch.tensor(label_up, dtype=torch.long)
         item = self.feature_transform.apply(item)
         return item
 

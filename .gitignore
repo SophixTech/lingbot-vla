@@ -219,3 +219,6 @@ eval.sh
 
 # Local analysis reports
 /report/
+
+# Local trained model artifacts
+/trained-model/
