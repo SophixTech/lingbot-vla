@@ -59,6 +59,28 @@ The ECOT sidecars provide subtask intervals, per-frame bounding boxes, and the
 initial label orientation. The loader retains source identity and annotation
 consistency checks. No dataset files are rewritten.
 
+### Full-data training after branch consolidation
+
+The three newarti branches are consolidated on the unified-prompt baseline.
+The default `configs/vla/package_ecot_full.yaml` keeps annotated-only selection.
+Use `configs/vla/package_ecot_fulltrain.yaml` to include unannotated episodes:
+
+```bash
+bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_ecot_fulltrain.yaml
+```
+
+Both configurations use exactly the instruction above. Full-data outputs go to
+`output/newarti_ecot_fulltrain`. Every sample contributes to action loss;
+missing annotations mask all four auxiliary losses, including visibility.
+Predicted action conditioning remains active, and auxiliary losses average only
+valid targets. Entirely unannotated batches have finite zero auxiliary loss.
+The existing train/test split and normalization are preserved.
+
+The fulltrain branch previously recorded an episode identity mismatch in
+`train/data/chunk-000/file-002.parquet` (episode 0 instead of metadata episode 2).
+Validate or repair the source dataset before full-data training if still present;
+this merge does not modify datasets or bypass identity checks.
+
 The model predicts four subtask logits, two orientation logits, four normalized
 box coordinates, and one visibility logit from pooled VLM prefix features.
 The four subtask probabilities, two orientation probabilities, visibility-gated
