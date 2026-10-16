@@ -1,6 +1,6 @@
-# One unified full prompt + ECOT heads/conditioning + full fine-tuning.
+# One unified full prompt + all training episodes + masked ECOT supervision.
 # Run from this worktree's root. Adjust absolute data/model paths for the server.
-# Shared recipe matches ORI-lingbo-vla-fullprompt/package_posttrain.yaml.
+# Shared recipe matches ORI-lingbot-vla/package_posttrain.yaml.
 # Keep ECOT dataset identity, annotation selection, and a separate output directory.
 # Batch 32 per GPU with accumulation 4; GPU capacity is not validated.
 model:
@@ -13,7 +13,7 @@ data:
   robot_config_root: configs/robot_configs
   train_path: /home/bjtc/Sophix/datasets/marked_9_1_0922/train
   ecot_annotations_path: /home/bjtc/Sophix/datasets/ecot_annotations/ecot1003
-  ecot_annotations_only: true
+  ecot_annotations_only: false
   exclude_regrasp: false
   joints:
     - arm.position: 14
@@ -26,7 +26,7 @@ data:
   norm_type: meanstd
   norm_stats_file: /home/bjtc/Sophix/datasets/marked_9_1_0922/train_stats/norm_stats.json
 train:
-  output_dir: output/newarti_ecot_fullprompt
+  output_dir: output/newarti_ecot_full
   data_parallel_mode: fsdp2
   enable_full_shard: false
   module_fsdp_enable: true

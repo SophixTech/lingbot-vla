@@ -86,14 +86,18 @@ def test_unannotated_samples_keep_actions_and_mask_all_auxiliary_targets(annotat
         torch.full((2, 3), float(ep)) for ep in range(4)]))
 
 
-def test_fulltrain_config_includes_unannotated_episodes():
+@pytest.mark.parametrize("config_name,output_dir", [
+    ("package_ecot_full.yaml", "output/newarti_ecot_full"),
+    ("package_ecot_fulltrain.yaml", "output/newarti_ecot_fulltrain"),
+])
+def test_fulltrain_config_includes_unannotated_episodes(config_name, output_dir):
     root = Path(__file__).resolve().parents[1]
-    cfg = yaml.safe_load((root / "configs/vla/package_ecot_fulltrain.yaml").read_text())
+    cfg = yaml.safe_load((root / "configs/vla" / config_name).read_text())
     assert cfg["data"]["ecot_annotations_only"] is False
     assert cfg["data"]["exclude_regrasp"] is False
     assert Path(cfg["data"]["train_path"]).name == "train"
     assert cfg["train"]["ecot_aux_supervision"] is True
-    assert cfg["train"]["output_dir"] == "output/newarti_ecot_fulltrain"
+    assert cfg["train"]["output_dir"] == output_dir
 
 
 def test_training_config_rejects_frozen_backbones():

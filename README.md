@@ -42,9 +42,9 @@ data from 9 popular dual-arm robot configurations.
 ---
 
 
-## Unified-prompt ECOT full fine-tuning (`zzc-dev-newarti-fullprompt`)
+## Unified-prompt ECOT full fine-tuning (`zzc-dev-newarti`)
 
-All training episodes use the same instruction as `ORI-lingbo-vla-fullprompt`,
+All training episodes use the same instruction as `ORI-lingbot-vla`,
 regardless of `grasp_label_up` or missing annotation records:
 
 > Take out the top soft package from the box. Based on its initial label orientation in the box before grasping: if the label initially faces up, place the package directly on the conveyor belt; if it initially faces down, flip the package so the label faces up before placing it on the conveyor belt.
@@ -52,7 +52,7 @@ regardless of `grasp_label_up` or missing annotation records:
 Use exactly this instruction for evaluation and deployment too. The loader
 assigns it before feature transformation. Episode labels no longer select the
 prompt; ECOT auxiliary supervision and action conditioning remain enabled.
-The existing dataset split and episode selection are preserved. Normalization
+The existing train/test split is preserved; all training episodes are included. Normalization
 uses `meanstd` to match the full-prompt baseline.
 
 The ECOT sidecars provide subtask intervals, per-frame bounding boxes, and the
@@ -62,15 +62,18 @@ consistency checks. No dataset files are rewritten.
 ### Full-data training after branch consolidation
 
 The three newarti branches are consolidated on the unified-prompt baseline.
-The default `configs/vla/package_ecot_full.yaml` keeps annotated-only selection.
-Use `configs/vla/package_ecot_fulltrain.yaml` to include unannotated episodes:
+The retained worktree is `ORI-lingbo-vla-newarti`.
+The default `configs/vla/package_ecot_full.yaml` includes all training episodes,
+including those without ECOT annotations. Run:
 
 ```bash
-bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_ecot_fulltrain.yaml
+bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_ecot_full.yaml
 ```
 
-Both configurations use exactly the instruction above. Full-data outputs go to
-`output/newarti_ecot_fulltrain`. Every sample contributes to action loss;
+The default outputs go to `output/newarti_ecot_full`.
+`package_ecot_fulltrain.yaml` remains available with the same training settings
+and its separate output directory `output/newarti_ecot_fulltrain`.
+Both configurations use exactly the instruction above. Every sample contributes to action loss;
 missing annotations mask all four auxiliary losses, including visibility.
 Predicted action conditioning remains active, and auxiliary losses average only
 valid targets. Entirely unannotated batches have finite zero auxiliary loss.
@@ -100,10 +103,9 @@ L = MSE flow matching
 ```
 
 `bbox=null` is a negative visibility target and is excluded from box regression.
-Unannotated samples, when enabled, have ignored auxiliary targets (`-100`), not
-negative visibility labels. `ecot_annotations_only: true` selects the same
-annotated training episodes as ECOT; this means full **parameter** fine-tuning,
-not loading unannotated episodes. No dataset files are rewritten.
+Unannotated samples have ignored auxiliary targets (`-100`), not negative
+visibility labels. `ecot_annotations_only: false` and `exclude_regrasp: false`
+include every episode in the training split. No dataset files are rewritten.
 
 Use `configs/vla/package_ecot_full.yaml`. It initializes from the base model,
 uses the ECOT dataset and its train-only normalization statistics, and trains
@@ -122,14 +124,14 @@ bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_ecot_full.yaml
 ```
 
 Set the model/data paths for the target server. Outputs go to
-`output/newarti_ecot_fullprompt`. The shared recipe matches
-`ORI-lingbo-vla-fullprompt/configs/vla/package_posttrain.yaml`: `meanstd`
+`output/newarti_ecot_full`. The shared recipe matches
+`ORI-lingbot-vla/configs/vla/package_posttrain.yaml`: `meanstd`
 normalization, MSE flow matching (`fm`), 8 data workers, compilation enabled,
 FSDP2 with `enable_full_shard: false`, and gradient checkpointing. The candidate
 batch is 32 samples per GPU with 4 accumulation steps; training runs for
 40,000 steps and saves every 10,000 steps. ECOT dataset/statistics paths,
-annotation selection, auxiliary loss weights, and branch-specific prompts
-remain unchanged. Full-model
+auxiliary loss weights, and the unified prompt are retained; annotation-only
+selection is disabled. Full-model
 GPU memory capacity must be checked on the target hardware before a long run.
 `package_posttrain.yaml` is the non-ECOT baseline and also uses the unified prompt.
 

@@ -1,6 +1,6 @@
 # One unified full prompt + all training episodes + masked ECOT supervision.
 # Run from this worktree's root. Adjust absolute data/model paths for the server.
-# Shared recipe matches ORI-lingbo-vla-fullprompt/package_posttrain.yaml.
+# Shared recipe matches ORI-lingbot-vla/package_posttrain.yaml.
 # Keep ECOT dataset identity, annotation selection, and a separate output directory.
 # Batch 32 per GPU with accumulation 4; GPU capacity is not validated.
 model:

@@ -89,7 +89,7 @@
     "reference": "local worktrees/branch-ecot, including action conditioning and visibility extensions",
     "dataset": "marked_9_1_0922/train with ecot_annotations/ecot1003 sidecars",
     "normalization": "meanstd using marked_9_1_0922/train_stats/norm_stats.json; same normalization method as the full-prompt baseline, with ECOT dataset statistics",
-    "selection": "package_ecot_full.yaml: annotated episodes only; package_ecot_fulltrain.yaml: all training episodes. Both use one prompt, both orientations, no regrasp exclusion",
+    "selection": "package_ecot_full.yaml and package_ecot_fulltrain.yaml: all training episodes, including unannotated episodes. One prompt, both orientations, no regrasp exclusion",
     "auxiliary_targets": ["subtask", "bbox", "grasp_label_up", "bbox_visibility"],
     "null_bbox": "negative visibility target; excluded from box regression",
     "unannotated": "train action loss; mask all four annotation-based auxiliary losses, including visibility; keep prediction-based action conditioning",
