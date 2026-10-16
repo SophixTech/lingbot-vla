@@ -85,7 +85,26 @@ python -m unittest discover -s tests -p 'test_fullprompt.py'
 ## Train on separate dataset roots
 
 `configs/vla/package_multi_posttrain.yaml` enables full-prompt training on the
-0922 training split and `datav2_1015` without merging or rewriting either dataset.
+0922 training split and `datav2_1015_split/train` as independent dataset roots.
+The original `datav2_1015` remains unchanged. Its derived split holds out 10
+episodes (5,391 frames), selected using NumPy default_rng seed 42. Training uses
+492 episodes (276,886 frames). The split manifest and episode mappings live in
+`datasets/datav2_1015_split` alongside the separate `train` and `test` roots.
+Do not include the original unsplit root alongside these roots in training.
+
+Reproduce this split on another machine with the standalone script (requires
+`numpy` and `pyarrow`; output must not already exist):
+
+```bash
+python scripts/split_datav2_1015.py \
+  --source /path/to/datav2_1015 \
+  --output /path/to/datav2_1015_split
+```
+
+The defaults are `--seed 42 --test-count 10`. The script copies all files,
+verifies video checksums, and rewrites episode indices and metadata. It leaves
+the source untouched and does not generate joint training normalization.
+
 Select any number of roots using `data.train_paths`; one entry trains on only
 that dataset. An explicit list overrides the legacy `data.train_path` field.
 Existing single-path configurations remain valid, and a comma-separated
@@ -95,7 +114,7 @@ Existing single-path configurations remain valid, and a comma-separated
 data:
   train_paths:
     - /path/to/marked_9_1_0922_rebuilt/train
-    - /path/to/datav2_1015
+    - /path/to/datav2_1015_split/train
   exclude_regrasp: false
   norm_type: meanstd
   norm_stats_file: /path/to/shared_train_stats/norm_stats.json
@@ -104,14 +123,16 @@ data:
 Each root has its own LeRobot loader and episode/video metadata. The existing
 stateful distributed sampler shuffles the concatenated frame indices; action
 chunks cannot cross episode or dataset boundaries. Sampling is proportional to
-retained frame counts: 635,213 old frames and 282,277 new frames give roughly
-69.23% / 30.77%, not a 50/50 dataset balance. Keep the ordered root list and
+retained frame counts: 635,213 old frames and 276,886 new frames give roughly
+69.65% / 30.35%, not a 50/50 dataset balance. Keep the ordered root list and
 sampling settings fixed when resuming a checkpoint; start a new run when changing
 training data. New unannotated episodes use the same full prompt; labels are not
 needed for selecting the instruction. No ECOT auxiliary targets are added.
 
 All roots share the same robot mapping and normalization file. The example
-reuses 0922's statistics as a valid common transform. To fit a new transform on
+uses joint statistics in `marked0922_datav2_1015_split_train_stats/norm_stats.json`,
+computed from 1,441 training episodes (912,099 frames), excluding held-out data.
+To fit a new transform on
 exactly the selected training roots (without any implicit test data), run:
 
 ```bash

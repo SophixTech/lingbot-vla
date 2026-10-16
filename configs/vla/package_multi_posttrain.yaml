@@ -13,7 +13,7 @@ data:
   # at a repaired/verified rebuilt train directory before starting training.
   train_paths:
     - /home/bjtc/Sophix/datasets/marked_9_1_0922/train
-    - /home/bjtc/Sophix/datasets/datav2_1015
+    - /home/bjtc/Sophix/datasets/datav2_1015_split/train
   exclude_regrasp: false
   joints:
   - arm.position: 14
@@ -25,9 +25,8 @@ data:
   num_workers: 8
   norm_type: meanstd
   # One shared transform for both datasets and deployment.
-  # Existing 0922 statistics are valid for an initial run; optionally recompute
-  # joint training statistics with scripts/compute_vla_mixture_stats.py.
-  norm_stats_file: /home/bjtc/Sophix/datasets/marked_9_1_0922/train_stats/norm_stats.json
+  # Joint training statistics exclude the 10 held-out datav2 episodes.
+  norm_stats_file: /home/bjtc/Sophix/datasets/marked0922_datav2_1015_split_train_stats/norm_stats.json
 train:
   output_dir: output/marked0922_datav2_fullprompt
   data_parallel_mode: fsdp2
