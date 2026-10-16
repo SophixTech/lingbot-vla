@@ -20,7 +20,7 @@ from lingbotvla.data import (
     VLADataCollatorWithPacking,
     build_dataloader,
 )
-from lingbotvla.data.vla_data import VLADataset
+from lingbotvla.data.vla_data import build_vla_dataset
 from lingbotvla.distributed.offloading import build_activation_offloading_context
 from lingbotvla.distributed.parallel_state import get_parallel_state, init_parallel_state
 from lingbotvla.distributed.torch_parallelize import build_parallelize_model
@@ -134,7 +134,11 @@ def main():
             args.data.chunk_size = args.train.chunk_size
             image_processor=processor.image_processor if 'qwen' in args.model.tokenizer_path.lower() else None
 
-            train_dataset = VLADataset(repo_id=args.data.train_path, data_name =args.data.data_name, robot_config_root=args.data.robot_config_root, config=model.config, tokenizer=processor.tokenizer, data_config=args.data, image_processor=image_processor,use_depth_align=use_depth_align)
+            train_dataset = build_vla_dataset(
+                data_config=args.data, config=model.config, tokenizer=processor.tokenizer,
+                image_processor=image_processor, use_depth_align=use_depth_align,
+            )
+            logger.info_rank0(f"Training dataset mixture: {train_dataset.training_sources}")
             
             args.train.compute_train_steps(args.data.max_seq_len, args.data.train_size, len(train_dataset))
 

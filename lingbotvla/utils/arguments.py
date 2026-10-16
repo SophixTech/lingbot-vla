@@ -150,7 +150,12 @@ class ModelArguments:
 @dataclass
 class DataArguments:
     train_path: str = field(
-        metadata={"help": "Path of the training data. Use comma to separate multiple datasets."},
+        default="",
+        metadata={"help": "Training root; for VLA a comma-separated list is also supported."},
+    )
+    train_paths: Optional[List[str]] = field(
+        default=None,
+        metadata={"help": "Ordered VLA dataset roots; when set, overrides train_path. Frames are shuffled together."},
     )
     train_size: int = field(
         default=10_000_000,

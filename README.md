@@ -82,6 +82,75 @@ Run the prompt regression checks without loading model weights:
 python -m unittest discover -s tests -p 'test_fullprompt.py'
 ```
 
+## Train on separate dataset roots
+
+`configs/vla/package_multi_posttrain.yaml` enables full-prompt training on the
+0922 training split and `datav2_1015` without merging or rewriting either dataset.
+Select any number of roots using `data.train_paths`; one entry trains on only
+that dataset. An explicit list overrides the legacy `data.train_path` field.
+Existing single-path configurations remain valid, and a comma-separated
+`train_path` is also supported.
+
+```yaml
+data:
+  train_paths:
+    - /path/to/marked_9_1_0922_rebuilt/train
+    - /path/to/datav2_1015
+  exclude_regrasp: false
+  norm_type: meanstd
+  norm_stats_file: /path/to/shared_train_stats/norm_stats.json
+```
+
+Each root has its own LeRobot loader and episode/video metadata. The existing
+stateful distributed sampler shuffles the concatenated frame indices; action
+chunks cannot cross episode or dataset boundaries. Sampling is proportional to
+retained frame counts: 635,213 old frames and 282,277 new frames give roughly
+69.23% / 30.77%, not a 50/50 dataset balance. Keep the ordered root list and
+sampling settings fixed when resuming a checkpoint; start a new run when changing
+training data. New unannotated episodes use the same full prompt; labels are not
+needed for selecting the instruction. No ECOT auxiliary targets are added.
+
+All roots share the same robot mapping and normalization file. The example
+reuses 0922's statistics as a valid common transform. To fit a new transform on
+exactly the selected training roots (without any implicit test data), run:
+
+```bash
+python scripts/compute_vla_mixture_stats.py \
+  --config configs/vla/package_multi_posttrain.yaml \
+  --output /path/to/shared_train_stats/norm_stats.json
+```
+
+Then set `data.norm_stats_file` to the output, and use that same file for
+inference. The statistics command supports both packed parquet files and one
+file per episode; it implements the 14-arm + 2-gripper mapping and per-episode
+50-step tail clamping (or the configured `chunk_size`). It refuses existing
+output files, corrupt numeric indices, and duplicate source episodes.
+
+```bash
+export PYTHONPATH="$PWD"
+bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_multi_posttrain.yaml
+```
+
+Local audit results are in `reports/datav2_1015_compatibility.json`:
+
+- `datav2_1015`: 502 episodes / 282,277 frames, one packed data parquet,
+  1,506 per-episode videos, and no orientation/regrasp labels or held-out split.
+- The numeric feature schema, 30 FPS, robot layout and three cameras match 0922.
+  No source IDs overlap with either 0922 train or test. All new numeric indices
+  and video headers pass. New data can use the full-prompt loader directly.
+- Head-camera alignment exceeds 100 ms for 5,365 frames (1.90%), all within the
+  first 30 frames of their episodes. Median per-frame offset is 8.35 ms, maximum
+  941.14 ms. This is a quality difference, despite identical model interfaces;
+  compatibility does not establish equivalent supervision quality or accuracy.
+- The local original 0922 `train/data/chunk-000/file-002.parquet` still contains
+  episode ID 0 instead of 2. Full loading fails until that dataset is repaired
+  or replaced by a verified rebuild. The example keeps the requested original
+  path; change it to the repaired/rebuilt train directory before a mixed run.
+- Real mixed loading and normalized collation were verified using the previously
+  rebuilt 0922 copy plus datav2: 917,490 total frames, matching prompt tokens,
+  finite image/state/action batches, and correct action tail padding. No full
+  GPU training step or validation of the candidate per-GPU batch capacity was run.
+
 ## 🛠️ Installation
 Requirements
  - Python 3.12.3
