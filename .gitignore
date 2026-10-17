@@ -1,0 +1,7 @@
+/report/
+/.venv/
+/*.egg-info/
+__pycache__/
+*.py[cod]
+/READMEdata.md
+/crop_1016.py
