@@ -1,6 +1,7 @@
 #!/bin/bash
 
-set -x
+set -ex
+set -o pipefail
 
 export TOKENIZERS_PARALLELISM=false
 export HF_HUB_OFFLINE=1 
@@ -23,4 +24,4 @@ MASTER_PORT=${MASTER_PORT:=62500}
 
 
 torchrun --nnodes=$NNODES --nproc-per-node $NPROC_PER_NODE --node-rank $NODE_RANK \
-  --master-addr=$MASTER_ADDR --master-port=$MASTER_PORT $@ 2>&1 | tee log.txt
+  --master-addr=$MASTER_ADDR --master-port=$MASTER_PORT "$@" 2>&1 | tee log.txt

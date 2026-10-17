@@ -315,6 +315,10 @@ class MyDataArguments(DataArguments):
         default="global",
         metadata={"help": "Type of the prompt."},
     )
+    task_prompt: Optional[str] = field(
+        default=None,
+        metadata={"help": "Task instruction override shared by training and inference."},
+    )
     use_future_image: bool = field(
         default=False,
         metadata={"help": "Whether to use future image."},

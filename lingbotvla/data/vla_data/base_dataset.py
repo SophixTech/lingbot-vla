@@ -177,6 +177,7 @@ class VLADataset(Dataset):
         self.config = config
         self.chunk_size = chunk_size
         self.data_name = data_name
+        self.task_prompt = getattr(dataset_config, "task_prompt", None)
         self.disabled_image_features = disabled_image_features
         self.use_depth_align = use_depth_align
         self.use_future_image = use_future_image
@@ -206,10 +207,12 @@ class VLADataset(Dataset):
         merged_delta = {**self.get_delta_timestamps(), **self.get_video_delta_timestamps()}
 
         self.dataset = LeRobotDataset(
-            repo_id=repo_id,
+            repo_id=lerobot_repo_id,
+            root=lerobot_root,
             image_transforms=Resize(image_size),
             delta_timestamps=merged_delta,
-            load_image=load_image
+            load_image=load_image,
+            video_backend=video_backend,
         )
 
         self.return_item = return_item
@@ -267,6 +270,8 @@ class VLADataset(Dataset):
 
     def getitem(self, idx):
         raw_item = self.check_lerobot_item(self.dataset[idx])
+        if self.task_prompt:
+            raw_item["task"] = self.task_prompt
         if (
             self.use_future_image
             and "future_video_effective_fps" not in raw_item

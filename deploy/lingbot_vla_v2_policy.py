@@ -401,6 +401,9 @@ class LingbotVLAv2Server:
     def _prepare_model_input(self, observation):
         # not modify input observation
         observation = dict(observation)
+        task_prompt = getattr(self.data_config, "task_prompt", None)
+        if task_prompt:
+            observation["task"] = task_prompt
         self.resize_image(observation)
         for k, v in list(observation.items()):
             if isinstance(v, np.ndarray):
