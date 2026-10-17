@@ -193,6 +193,10 @@ class DataArguments:
         default=8,
         metadata={"help": "Number of workers to load data."},
     )
+    video_decoder_cache_size: int = field(
+        default=32,
+        metadata={"help": "Maximum live torchcodec decoders per process, shared across VLA dataset roots."},
+    )
     prefetch_factor: int = field(
         default=4,
         metadata={"help": "Number of batches loaded in advance by each worker."},

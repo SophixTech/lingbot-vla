@@ -31,6 +31,7 @@ from lerobot.datasets.lerobot_dataset import LeRobotDataset as BaseLeRobotDatase
 from lerobot.datasets.lerobot_dataset import LeRobotDatasetMetadata
 
 from .utils import FeatureTransform
+from .video_cache import decode_video_frames_bounded
 
 
 # Adapt branch-ecot's unified instruction to specify orientation before grasping.
@@ -47,10 +48,30 @@ class LeRobotDataset(BaseLeRobotDataset):
         self,
         repo_id: str,
         load_image: bool = True,
+        video_decoder_cache_size: int = 32,
         **kwargs,
     ):
+        if video_decoder_cache_size < 1:
+            raise ValueError("video_decoder_cache_size must be positive")
         super().__init__(repo_id, **kwargs)
+        self.video_decoder_cache_size = video_decoder_cache_size
         self.load_image = load_image
+
+    def _query_videos(self, query_timestamps, ep_idx):
+        if self.video_backend != "torchcodec":
+            return super()._query_videos(query_timestamps, ep_idx)
+        # Preserve LeRobot v3 packed-video timestamp offsets and tolerance checks.
+        episode = self.meta.episodes[ep_idx]
+        item = {}
+        for key, timestamps in query_timestamps.items():
+            offset = episode[f"videos/{key}/from_timestamp"]
+            path = self.root / self.meta.get_video_file_path(ep_idx, key)
+            frames = decode_video_frames_bounded(
+                path, [offset + ts for ts in timestamps], self.tolerance_s,
+                capacity=self.video_decoder_cache_size,
+            )
+            item[key] = frames.squeeze(0)
+        return item
 
     def _query_hf_dataset(self, query_indices: dict[str, list[int]]) -> dict:
         """
@@ -121,7 +142,7 @@ class VLADataset(Dataset):
         config=PI0Config,
         tokenizer=AutoTokenizer,
         image_processor=None,
-        video_backend = 'torchcodec',
+        video_backend = None,
         chunk_size = 50,
         image_size = (224, 224),
         do_nomalize = True,
@@ -176,6 +197,8 @@ class VLADataset(Dataset):
             repo_id=repo_id,
             image_transforms=Resize(image_size),
             delta_timestamps=self.get_delta_timestamps(),
+            video_backend=video_backend,
+            video_decoder_cache_size=getattr(data_config, "video_decoder_cache_size", 32),
         )
         if self.selected_episodes is not None:
             dataset_kwargs["episodes"] = self.selected_episodes

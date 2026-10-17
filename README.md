@@ -152,6 +152,18 @@ export PYTHONPATH="$PWD"
 bash train.sh tasks/vla/train_lingbotvla.py configs/vla/package_multi_posttrain.yaml
 ```
 
+Video decoding uses a process-local LRU cache shared across all roots, with
+32 live torchcodec decoders per worker by default. The mixed-data example sets
+`data.video_decoder_cache_size: 128`. Eviction
+releases decoder objects and closes their input files. The mixed-data example
+uses `num_workers: 8` and the default `prefetch_factor: 4`, with micro batch size
+32, gradient accumulation 2, and 60,000 training steps. Tune worker count only after
+checking throughput and memory. Cache capacity limits live decoders, not total
+process RSS; native allocators can retain freed memory. This bounds a known
+resource-growth path but does not establish the cause of a server SIGKILL.
+Restart training processes to apply these changes. `train.sh` now propagates
+training failures through its logging pipeline instead of returning tee's status.
+
 Local audit results are in `reports/datav2_1015_compatibility.json`:
 
 - `datav2_1015`: 502 episodes / 282,277 frames, one packed data parquet,
