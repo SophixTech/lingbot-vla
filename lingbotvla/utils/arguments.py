@@ -603,6 +603,10 @@ class TrainingArguments:
         default=False,
         metadata={"help": "Enable ECOT subtask, bbox, and label auxiliary losses."},
     )
+    ecot_action_conditioning: bool = field(default=False)
+    ecot_label_kv_conditioning: bool = field(default=False)
+    ecot_visibility: bool = field(default=False)
+    ecot_visibility_loss_weight: float = field(default=0.1)
     ecot_subtask_loss_weight: float = field(default=0.1)
     ecot_bbox_loss_weight: float = field(default=0.05)
     ecot_label_loss_weight: float = field(default=0.1)

@@ -1271,6 +1271,8 @@ class QwenvlWithExpertModel(PreTrainedModel):
         fill_kv_cache: Optional[bool] = None,
         ada_cond: List[torch.FloatTensor] = None,
         norm_qkv: bool = False,
+        extra_kv: Optional[List[Tuple[torch.Tensor, torch.Tensor]]] = None,
+        extra_kv_query_start: int = 0,
     ):
         """
         Args:
@@ -1293,6 +1295,18 @@ class QwenvlWithExpertModel(PreTrainedModel):
                 Optional kv cache.
         """
         models = [self.qwenvl.model, self.qwen_expert.model]
+
+        # Label memory has keys/values but no queries. Only suffix queries may
+        # read it; the VLM prefix must remain independent of action conditions.
+        if extra_kv is not None:
+            if attention_mask is None or attention_mask.ndim != 3:
+                raise ValueError("Extra K/V requires a [B, Q, K] attention mask")
+            extra_mask = torch.ones(
+                (*attention_mask.shape[:2], extra_kv[0][0].shape[1]),
+                dtype=torch.bool, device=attention_mask.device,
+            )
+            extra_mask[:, :extra_kv_query_start] = False
+            attention_mask = torch.cat((attention_mask, extra_mask), dim=-1)
 
         # RMSNorm
         num_layers = self.qwenvl.config.num_hidden_layers # 36
@@ -1334,6 +1348,11 @@ class QwenvlWithExpertModel(PreTrainedModel):
                 use_cache=use_cache,
                 fill_kv_cache=fill_kv_cache,
             )
+
+            if extra_kv is not None:
+                extra_key, extra_value = extra_kv[layer_idx]
+                key_states = torch.cat((key_states, extra_key.to(key_states.dtype)), dim=1)
+                value_states = torch.cat((value_states, extra_value.to(value_states.dtype)), dim=1)
             
             att_output = self.attention_interface(query_states, key_states, value_states, attention_mask)
 
@@ -1467,6 +1486,39 @@ class LingbotVlaPolicy(PreTrainedPolicy):
 
         return total_loss, loss_vla, loss_depth, loss_dict, depth_preds
 
+class EcotLabelKVProjector(nn.Module):
+    """Map predicted label probabilities to per-layer Action Expert K/V tokens."""
+
+    def __init__(self, label_dim, hidden_size, num_layers, num_kv_heads, head_dim):
+        super().__init__()
+        self.num_layers = num_layers
+        self.num_kv_heads = num_kv_heads
+        self.head_dim = head_dim
+        kv_width = 2 * num_kv_heads * head_dim
+        self.label_encoder = nn.Sequential(
+            nn.Linear(label_dim, hidden_size),
+            nn.GELU(),
+            nn.Linear(hidden_size, 64),
+        )
+        self.layer_kv_proj = nn.ModuleList(
+            nn.Linear(64, kv_width) for _ in range(num_layers)
+        )
+        for projection in self.layer_kv_proj:
+            # Small initial memory slots; action loss learns their use.
+            nn.init.normal_(projection.weight, mean=0.0, std=0.01)
+            nn.init.zeros_(projection.bias)
+
+    def forward(self, label_probs):
+        encoded = self.label_encoder(label_probs.to(self.label_encoder[0].weight.dtype))
+        layer_kv = [
+            projection(encoded).view(
+                encoded.shape[0], 2, self.num_kv_heads, self.head_dim
+            )
+            for projection in self.layer_kv_proj
+        ]
+        return torch.stack(layer_kv, dim=1)
+
+
 class FlowMatching(nn.Module):
     def __init__(self, config, eval):
         super().__init__()
@@ -1501,8 +1553,37 @@ class FlowMatching(nn.Module):
             self.config.proj_width, self.config.max_action_dim
         )
         self.ecot_aux_supervision = bool(getattr(config, "ecot_aux_supervision", False))
+        if getattr(config, 'ecot_action_conditioning', False):
+            if not self.ecot_aux_supervision:
+                raise ValueError('ECOT action conditioning requires ECOT heads')
+            self.ecot_condition_proj = nn.Sequential(nn.Linear(11 if getattr(config, 'ecot_visibility', False) else 10, config.proj_width))
+        self.ecot_label_kv_conditioning = bool(
+            getattr(config, "ecot_label_kv_conditioning", False)
+        )
+        if self.ecot_label_kv_conditioning:
+            if getattr(config, "ecot_action_conditioning", False):
+                raise ValueError(
+                    "Enable either additive ECOT conditioning or label K/V, not both"
+                )
+            if not self.ecot_aux_supervision:
+                raise ValueError("ECOT label K/V conditioning requires ECOT heads")
+            expert_config = qwenvl_with_export_config.qwen_expert_config
+            self.ecot_label_kv_projector = EcotLabelKVProjector(
+                label_dim=2,
+                hidden_size=64,
+                num_layers=expert_config.num_hidden_layers,
+                num_kv_heads=expert_config.num_key_value_heads,
+                head_dim=getattr(
+                    expert_config,
+                    "head_dim",
+                    expert_config.hidden_size // expert_config.num_attention_heads,
+                ),
+            )
         if self.ecot_aux_supervision:
             self.ecot_feature_width = qwenvl_with_export_config.qwenvl_config.hidden_size
+            if getattr(config, 'ecot_visibility', False):
+                self.ecot_visibility_head = nn.Sequential(
+                    nn.LayerNorm(self.ecot_feature_width), nn.Linear(self.ecot_feature_width, 1))
             self.ecot_subtask_head = nn.Sequential(
                 nn.LayerNorm(self.ecot_feature_width),
                 nn.Linear(self.ecot_feature_width, 4),
@@ -1746,6 +1827,22 @@ class FlowMatching(nn.Module):
         ) # [1, state_bs*(50+1), 1024], [1, state_bs*(50+1)], [1, state_bs*(50+1)]   state_bs=bs_img
 
         pad_masks = torch.cat([prefix_pad_masks, suffix_pad_masks], dim=1)
+        conditioning_prefix = None
+        label_kv = None
+        use_label_kv = getattr(self.config, 'ecot_label_kv_conditioning', False)
+        if getattr(self.config, 'ecot_action_conditioning', False) or use_label_kv:
+            prefix_outputs, _ = self.qwenvl_with_expert.forward(
+                attention_mask=make_att_2d_masks(prefix_pad_masks, prefix_att_masks),
+                position_ids=torch.cumsum(prefix_pad_masks, dim=1) - 1,
+                past_key_values=None, inputs_embeds=[prefix_embs, None],
+                use_cache=False, fill_kv_cache=False,
+            )
+            conditioning_prefix = prefix_outputs[0]
+            if getattr(self.config, 'ecot_action_conditioning', False):
+                condition = self.ecot_condition(conditioning_prefix, prefix_pad_masks)
+                suffix_embs = suffix_embs + condition[:, None, :].to(suffix_embs.dtype)
+            if use_label_kv:
+                label_kv = self.ecot_label_kv(conditioning_prefix, prefix_pad_masks)
         att_masks = torch.cat([prefix_att_masks, suffix_att_masks], dim=1)
 
         # pad_masks = pad_masks.reshape(state.size(0), -1)
@@ -1754,6 +1851,9 @@ class FlowMatching(nn.Module):
         if self.use_depth_align and self.align_type == "query":
             att_2d_masks = self.make_att_2d_masks_with_query(att_2d_masks, prefix_pad_masks.shape[-1], img_masks)
         position_ids = torch.cumsum(pad_masks, dim=1) - 1
+        if use_label_kv:
+            # Reserve the position immediately after the valid prefix for label.
+            position_ids[:, prefix_pad_masks.shape[1]:] += 1
         vlm_position_ids = torch.cumsum(prefix_pad_masks, dim=1) - 1
 
         # prefix_embs = prefix_embs.reshape(state.size(0), -1, prefix_embs.size(-1))
@@ -1767,11 +1867,13 @@ class FlowMatching(nn.Module):
             use_cache=self.config.use_cache,
             fill_kv_cache=True,
             ada_cond = time_embs if getattr(self.config, 'adanorm_time', False) else None,
-            norm_qkv=norm_qkv
+            norm_qkv=norm_qkv,
+            extra_kv=label_kv,
+            extra_kv_query_start=prefix_pad_masks.shape[1],
         )
         aux_loss = prefix_embs.new_zeros(())
         if self.ecot_aux_supervision and ecot_subtask_target is not None:
-            prefix_out = outputs_embeds[0]
+            prefix_out = outputs_embeds if conditioning_prefix is None else conditioning_prefix
             prefix_mask = prefix_pad_masks.to(dtype=prefix_out.dtype).unsqueeze(-1)
             pooled_prefix = (prefix_out * prefix_mask).sum(dim=1) / prefix_mask.sum(dim=1).clamp_min(1.0)
 
@@ -1793,6 +1895,13 @@ class FlowMatching(nn.Module):
                 if (label_target != -100).any() else label_logits.sum() * 0.0
             )
             valid_bbox = ecot_bbox_valid.to(device=bbox_pred.device, dtype=torch.bool)
+            visibility_loss = bbox_pred.sum() * 0.0
+            if getattr(self.config, 'ecot_visibility', False):
+                visibility_logits = self.ecot_visibility_head(head_input(self.ecot_visibility_head)).float().squeeze(-1)
+                annotated = subtask_target != -100
+                if annotated.any():
+                    visibility_loss = F.binary_cross_entropy_with_logits(
+                        visibility_logits[annotated], valid_bbox[annotated].float())
             if valid_bbox.any():
                 bbox_loss = F.smooth_l1_loss(
                     bbox_pred[valid_bbox],
@@ -1804,6 +1913,7 @@ class FlowMatching(nn.Module):
                 getattr(self.config, "ecot_subtask_loss_weight", 0.1) * subtask_loss
                 + getattr(self.config, "ecot_bbox_loss_weight", 0.05) * bbox_loss
                 + getattr(self.config, "ecot_label_loss_weight", 0.1) * label_loss
+                + getattr(self.config, "ecot_visibility_loss_weight", 0.1) * visibility_loss
             )
         if self.config.align_params != {}:
             loss_depth, depth_preds = self.depth_emb_forward(outputs_embeds, depth_targets, img_masks)
@@ -1851,7 +1961,7 @@ class FlowMatching(nn.Module):
         prefix_position_ids = torch.cumsum(prefix_pad_masks, dim=1) - 1
 
         # Compute image and language key value cache
-        _, past_key_values = self.qwenvl_with_expert.forward(
+        prefix_outputs, past_key_values = self.qwenvl_with_expert.forward(
             attention_mask=prefix_att_2d_masks,
             position_ids=prefix_position_ids,
             past_key_values=None,
@@ -1860,6 +1970,17 @@ class FlowMatching(nn.Module):
             fill_kv_cache=True,
         )
 
+        condition = (self.ecot_condition(prefix_outputs[0], prefix_pad_masks)
+                     if getattr(self.config, 'ecot_action_conditioning', False) else None)
+        if getattr(self.config, 'ecot_label_kv_conditioning', False):
+            label_kv = self.ecot_label_kv(prefix_outputs[0], prefix_pad_masks)
+            if past_key_values is None:
+                raise ValueError("Label K/V sampling requires use_cache=True")
+            for layer_idx, (key, value) in enumerate(label_kv):
+                cached = past_key_values[layer_idx]
+                cached['key_states'] = torch.cat((cached['key_states'], key.to(cached['key_states'].dtype)), dim=1)
+                cached['value_states'] = torch.cat((cached['value_states'], value.to(cached['value_states'].dtype)), dim=1)
+            prefix_pad_masks = torch.cat((prefix_pad_masks, torch.ones_like(prefix_pad_masks[:, :1])), dim=1)
         num_steps = num_steps if num_steps is not None else self.config.num_steps
         dt = torch.tensor(-1.0 / num_steps, dtype=dtype, device=device)
         x_t = noise
@@ -1873,7 +1994,7 @@ class FlowMatching(nn.Module):
                 if inference_delay is None:
                     raise ValueError("inference_delay is required when RTC is enabled")
                 velocity_fn = lambda x: self.predict_velocity(
-                    state, prefix_pad_masks, past_key_values, x, expanded_time
+                    state, prefix_pad_masks, past_key_values, x, expanded_time, condition
                 )
                 v_t = rtc_processor.denoise_step(
                     x_t=x_t,
@@ -1887,21 +2008,94 @@ class FlowMatching(nn.Module):
                 # Preserve the original forward-only path when RTC is off and
                 # for the first unconstrained RTC chunk.
                 v_t = self.predict_velocity(
-                    state, prefix_pad_masks, past_key_values, x_t, expanded_time
+                    state, prefix_pad_masks, past_key_values, x_t, expanded_time, condition
                 )
 
             # Euler step
             x_t += dt * v_t
             time += dt
         return x_t
+
+    @torch.no_grad()
+    def predict_ecot(self, images, img_masks, lang_tokens, lang_masks, return_visibility=False):
+        """Predict auxiliary ECOT targets from the observation prefix."""
+        prefix_embs, prefix_pad_masks, prefix_att_masks = self.embed_prefix(
+            images, img_masks, lang_tokens, lang_masks, False
+        )
+        prefix_att_2d_masks = make_att_2d_masks(prefix_pad_masks, prefix_att_masks)
+        prefix_position_ids = torch.cumsum(prefix_pad_masks, dim=1) - 1
+        outputs_embeds, _ = self.qwenvl_with_expert.forward(
+            attention_mask=prefix_att_2d_masks,
+            position_ids=prefix_position_ids,
+            past_key_values=None,
+            inputs_embeds=[prefix_embs, None],
+            use_cache=False,
+            fill_kv_cache=False,
+        )
+        pooled = (outputs_embeds[0] * prefix_pad_masks.unsqueeze(-1)).sum(1)
+        pooled = pooled / prefix_pad_masks.sum(1, keepdim=True).clamp_min(1).to(pooled.dtype)
+        subtask = self.ecot_subtask_head(pooled.to(self.ecot_subtask_head[1].weight.dtype)).float()
+        bbox = torch.sigmoid(self.ecot_bbox_head(pooled.to(self.ecot_bbox_head[1].weight.dtype))).float()
+        if return_visibility:
+            if not getattr(self.config, 'ecot_visibility', False):
+                raise ValueError('Checkpoint has no trained visibility head')
+            visibility = self.ecot_visibility_head(pooled.to(self.ecot_visibility_head[1].weight.dtype)).float().sigmoid().squeeze(-1)
+            return subtask, bbox, visibility
+        return subtask, bbox
+
+    @staticmethod
+    def nullable_bboxes(bbox, visibility, threshold=0.5):
+        """Apply the discrete null decision only for exported predictions."""
+        return [box if p >= threshold else None
+                for box, p in zip(bbox.detach().cpu().tolist(), visibility.detach().cpu().tolist())]
     
-    def predict_velocity(self, state, prefix_pad_masks, past_key_values, x_t, timestep):
+    def ecot_label_kv(self, prefix_out, prefix_mask):
+        """One label memory slot per layer; class order is [down, up].
+
+        Ground-truth labels are never conditioning inputs. Action gradients
+        train the projector and predicted-label path, as in v1 conditioning.
+        Keys receive the same RoPE convention as the existing prefix cache.
+        """
+        mask = prefix_mask.unsqueeze(-1).to(prefix_out.dtype)
+        pooled = (prefix_out * mask).sum(1) / mask.sum(1).clamp_min(1)
+        logits = self.ecot_label_head(pooled.to(self.ecot_label_head[1].weight.dtype))
+        kv = self.ecot_label_kv_projector(logits.float().softmax(-1))
+        positions = prefix_mask.sum(-1, keepdim=True)
+        return [
+            (apply_rope(kv[:, layer, 0].unsqueeze(1), positions),
+             kv[:, layer, 1].unsqueeze(1))
+            for layer in range(kv.shape[1])
+        ]
+
+    def ecot_condition(self, prefix_out, prefix_mask):
+        """Continuous predictions; gradients reach all three heads and VLM."""
+        mask = prefix_mask.unsqueeze(-1).to(prefix_out.dtype)
+        pooled = (prefix_out * mask).sum(1) / mask.sum(1).clamp_min(1)
+        def predict(head):
+            return head(pooled.to(head[1].weight.dtype)).float()
+        bbox = predict(self.ecot_bbox_head).sigmoid()
+        visibility = None
+        if getattr(self.config, 'ecot_visibility', False):
+            visibility = predict(self.ecot_visibility_head).sigmoid()
+            bbox = bbox * visibility
+        values = torch.cat((
+            predict(self.ecot_subtask_head).softmax(-1),
+            predict(self.ecot_label_head).softmax(-1),
+            bbox,
+        ), dim=-1)
+        if visibility is not None:
+            values = torch.cat((values, visibility), dim=-1)
+        return self.ecot_condition_proj(values.to(self.ecot_condition_proj[0].weight.dtype))
+
+    def predict_velocity(self, state, prefix_pad_masks, past_key_values, x_t, timestep, condition=None):
         """predict velocity at time t using the suffix model."""
         time_embs, suffix_embs, suffix_pad_masks, suffix_att_masks = self.embed_suffix(
             state, x_t, timestep
         )
 
         suffix_len = suffix_pad_masks.shape[1]
+        if condition is not None:
+            suffix_embs = suffix_embs + condition[:, None, :].to(suffix_embs.dtype)
         batch_size = prefix_pad_masks.shape[0]
         prefix_len = prefix_pad_masks.shape[1]
         prefix_pad_2d_masks = prefix_pad_masks[:, None, :].expand(

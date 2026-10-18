@@ -20,6 +20,11 @@ class ECOTAnnotations:
         self.split = split
         self.records: dict[tuple[str, int], dict] = {}
         self.image_sizes: dict[tuple[str, int], tuple[int, int]] = {}
+        source_meta = {}
+        meta_path = Path(source_dataset) / split / "meta/episodes.jsonl"
+        if meta_path.exists():
+            source_meta = {int(row["episode_index"]): row for row in
+                           (json.loads(line) for line in meta_path.read_text().splitlines() if line.strip())}
         index_path = self.root / "annotations.jsonl"
         if not index_path.exists():
             raise FileNotFoundError(f"ECOT annotation index not found: {index_path}")
@@ -29,8 +34,14 @@ class ECOTAnnotations:
                 if not line.strip():
                     continue
                 index = json.loads(line)
-                if Path(index["source_dataset"]).resolve() != Path(source_dataset).resolve():
+                if "source_dataset" in index and Path(index["source_dataset"]).resolve() != Path(source_dataset).resolve():
                     raise ValueError(f"{index_path}:{line_no}: source dataset mismatch")
+                if "source_dataset" not in index:
+                    meta = source_meta.get(int(index["episode_index"])) if index["split"] == split else None
+                    if (meta is None or not index.get("source_episode_id") or
+                            index["source_episode_id"] != meta.get("source_episode_id") or
+                            int(index["frame_count"]) != int(meta["frame_count"])):
+                        raise ValueError(f"{index_path}:{line_no}: source episode identity/frame mismatch")
                 key = (str(index["split"]), int(index["episode_index"]))
                 if key in self.records:
                     raise ValueError(f"{index_path}:{line_no}: duplicate {key}")

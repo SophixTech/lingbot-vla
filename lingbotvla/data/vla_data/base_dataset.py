@@ -188,7 +188,7 @@ class VLADataset(Dataset):
                 raise
             self.dataset = LeRobotDataset(**dataset_kwargs, download_videos=load_image)
 
-        if not getattr(data_config, 'exclude_regrasp', True):
+        if self.selected_episodes is None:
             # Full exports can exceed three-digit file numbering: lexical file
             # order places file-1000 before file-101. Action queries use original
             # global indices, so full-table row positions must match those IDs.

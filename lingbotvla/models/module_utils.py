@@ -268,7 +268,7 @@ def load_model_weights(
             missing_pretrained = {
                 name for name in parameter_names
                 if not name.startswith((
-                    "model.ecot_subtask_head.", "model.ecot_bbox_head.", "model.ecot_label_head."
+                    "model.ecot_subtask_head.", "model.ecot_bbox_head.", "model.ecot_label_head.", "model.ecot_condition_proj.", "model.ecot_visibility_head.", "model.ecot_label_kv_projector."
                 ))
             }
         assert not missing_pretrained, f"Missing {missing_pretrained} during Post-Training. This is not allowed!!!"
@@ -277,7 +277,7 @@ def load_model_weights(
             assert all('.paligemma.' not in name for name in parameter_names) or all('.qwenvl.' not in name for name in parameter_names), \
                 "Parameters in VLM  are not loaded when PreTraining!!!"
         logger.info_rank0(f"Find missing key(s) in state dict: {parameter_names}, initialize them.")
-        ecot_heads = ("ecot_subtask_head", "ecot_bbox_head", "ecot_label_head")
+        ecot_heads = ("ecot_subtask_head", "ecot_bbox_head", "ecot_label_head", "ecot_condition_proj", "ecot_visibility_head", "ecot_label_kv_projector")
         missing_ecot_heads = {
             head for head in ecot_heads
             if any(name.startswith(f"model.{head}.") for name in parameter_names)

@@ -6,7 +6,7 @@ model:
 data:
   datasets_type: vla
   data_name: package_a2d
-  robot_config_root: /home/bjtc/Sophix/worktrees/branch-ecot/configs/robot_configs
+  robot_config_root: /home/bjtc/Sophix/worktrees/branch-ecot-v2/configs/robot_configs
   # One canonical dataset root: train/ and test/ are separate LeRobot datasets.
   # Training reads only train/; test/ is reserved for independent evaluation.
   train_path: /home/bjtc/Sophix/datasets/marked_9_1_0922/train
@@ -25,7 +25,7 @@ data:
   # Both training and evaluation must use the statistics fitted on train/ only.
   norm_stats_file: /home/bjtc/Sophix/datasets/marked_9_1_0922/train_stats/norm_stats.json
 train:
-  output_dir: /home/bjtc/Sophix/worktrees/branch-ecot/output/ecot1003
+  output_dir: /home/bjtc/Sophix/worktrees/branch-ecot-v2/output/ecot1003_label_kv_v2
   data_parallel_mode: ddp
   enable_full_shard: true
   module_fsdp_enable: true
@@ -41,10 +41,10 @@ train:
   lr_decay_style: constant
   micro_batch_size: 1
   gradient_accumulation_steps: 16
-  max_steps: 100
+  max_steps: 10000
   num_train_epochs: 999999999
   ckpt_manager: dcp
-  save_steps: 100
+  save_steps: 1000
   save_epochs: 0
   enable_fp32: false
   enable_mixed_precision: false
@@ -56,6 +56,10 @@ train:
   lora_target_modules: q_proj,k_proj,v_proj,o_proj
   loss_type: L1_fm
   ecot_aux_supervision: true
+  ecot_action_conditioning: false
+  ecot_label_kv_conditioning: true
+  ecot_visibility: true
+  ecot_visibility_loss_weight: 0.1
   ecot_subtask_loss_weight: 0.1
   ecot_bbox_loss_weight: 0.05
   ecot_label_loss_weight: 0.1

@@ -117,6 +117,12 @@ def main():
         if getattr(model.config, "ecot_aux_supervision", False):
             for name in ("ecot_subtask_head", "ecot_bbox_head", "ecot_label_head"):
                 getattr(model.model, name).requires_grad_(True)
+            if getattr(model.config, "ecot_visibility", False):
+                model.model.ecot_visibility_head.requires_grad_(True)
+            if getattr(model.config, "ecot_action_conditioning", False):
+                model.model.ecot_condition_proj.requires_grad_(True)
+            if getattr(model.config, "ecot_label_kv_conditioning", False):
+                model.model.ecot_label_kv_projector.requires_grad_(True)
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
         total_params = sum(p.numel() for p in model.parameters())
         if trainable_params == 0:

@@ -111,6 +111,10 @@ def build_foundation_model(
     config.train_expert_only = config_kwargs['train_expert_only']
     config.resize_imgs_with_padding = config_kwargs['resize_imgs_with_padding']
     config.ecot_aux_supervision = config_kwargs.get('ecot_aux_supervision', False)
+    config.ecot_action_conditioning = config_kwargs.get('ecot_action_conditioning', False)
+    config.ecot_label_kv_conditioning = config_kwargs.get('ecot_label_kv_conditioning', False)
+    config.ecot_visibility = config_kwargs.get('ecot_visibility', False)
+    config.ecot_visibility_loss_weight = config_kwargs.get('ecot_visibility_loss_weight', 0.1)
     config.ecot_subtask_loss_weight = config_kwargs.get('ecot_subtask_loss_weight', 0.1)
     config.ecot_bbox_loss_weight = config_kwargs.get('ecot_bbox_loss_weight', 0.05)
     config.ecot_label_loss_weight = config_kwargs.get('ecot_label_loss_weight', 0.1)
