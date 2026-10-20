@@ -1,4 +1,4 @@
-# Package A2D: 20-step full-policy fine-tuning smoke configuration.
+# Package A2D: real_robot.yaml training recipe adapted for 2 GPUs.
 model:
   model_path: /inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/model/lingbot-vla-v2-6b
   tokenizer_path: /inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/model/Qwen3-VL-4B-Instruct
@@ -32,20 +32,21 @@ data:
     - head.position: meanstd
     - base.position: meanstd
     - hand.position: meanstd
-  norm_stats_file: /inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/marked_9_1_0922/train_stats/norm_stats.json
-  num_workers: 0
+  norm_stats_file: /inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/norm_stats_0922.json
+  num_workers: 8
+  video_decoder_cache_size: 32
   img_size: 256
   use_future_image: true
-  # Requires the task_prompt registration and data override in M03/M04.
+  # Shared task override for training and inference.
   task_prompt: >-
     Take out the top soft package from the box. If the label initially faces up,
-    place the package directly on the conveyor belt; if it initially faces down,
+    place the package directly on the conveyor belt; if label initially faces down,
     flip the package so the label faces up before placing it on the conveyor belt.
 
 train:
-  output_dir: output/package_a2d_v2_smoke
+  output_dir: output/package_a2d_v2_full
   moe_monitor_interval: 1000
-  enable_gradient_checkpointing: true
+  enable_gradient_checkpointing: false
   precompute_grid_thw: true
   vlm_causal: true
   vlm_fsdp: true
@@ -67,7 +68,7 @@ train:
   data_parallel_mode: fsdp2
   enable_full_shard: false
   module_fsdp_enable: true
-  use_compile: false
+  use_compile: true
   use_wandb: false
   rmpad: false
   rmpad_with_pos_ids: false
@@ -86,15 +87,16 @@ train:
   lr: 5.0e-5
   lr_decay_style: constant
   num_train_epochs: 29000
-  micro_batch_size: 1
-  # Omit global_batch_size: its None default enables automatic calculation.
-  gradient_accumulation_steps: 1
-  max_steps: 20
+  micro_batch_size: 32
+  global_batch_size: 128
+  # 32 samples/GPU * 2 GPUs * 2 accumulation steps = 128.
+  gradient_accumulation_steps: 2
+  max_steps: 60000
   ckpt_manager: dcp
-  save_steps: 20
-  save_epochs: 0
+  save_steps: 10000
+  save_epochs: 29000
   enable_fp32: true
-  enable_resume: false
+  enable_resume: true
   align_params:
     mode: 'query'
     num_task_tokens: 8

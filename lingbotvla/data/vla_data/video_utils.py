@@ -174,6 +174,7 @@ def decode_video_frames_torchcodec(
     tolerance_s: float,
     device: str = "cpu",
     log_loaded_timestamps: bool = False,
+    decoder_cache=None,
 ) -> torch.Tensor:
     """Loads frames associated with the requested timestamps of a video using torchcodec.
 
@@ -191,7 +192,12 @@ def decode_video_frames_torchcodec(
     else:
         raise ImportError("torchcodec is required but not available.")
     # initialize video decoder
-    decoder = VideoDecoder(video_path, device=device, seek_mode="approximate")
+    if decoder_cache is None:
+        decoder = VideoDecoder(video_path, device=device, seek_mode="approximate")
+    else:
+        if device != "cpu":
+            raise ValueError("The bounded video decoder cache only supports CPU decoding.")
+        decoder = decoder_cache.get_decoder(video_path)
     loaded_frames = []
     loaded_ts = []
     # get metadata for frame information

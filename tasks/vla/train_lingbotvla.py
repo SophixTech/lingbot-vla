@@ -319,6 +319,10 @@ class MyDataArguments(DataArguments):
         default=None,
         metadata={"help": "Task instruction override shared by training and inference."},
     )
+    video_decoder_cache_size: int = field(
+        default=32,
+        metadata={"help": "Maximum cached TorchCodec video decoders per process (positive)."},
+    )
     use_future_image: bool = field(
         default=False,
         metadata={"help": "Whether to use future image."},

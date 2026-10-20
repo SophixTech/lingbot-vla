@@ -32,4 +32,4 @@ images:
   - observation.images.camera_wrist_right:
       origin_keys: observation.images.cam_right_wrist_rgb
 
-norm_stats: /inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/marked_9_1_0922/train_stats/norm_stats.json
+norm_stats: /inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/norm_stats_0922.json

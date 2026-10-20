@@ -37,6 +37,7 @@ from datasets import load_dataset as _hf_load_dataset
 from ...utils import logging
 from .utils import FeatureTransform
 from .video_utils import decode_video_frames
+from .video_cache import decode_video_frames_bounded
 
 
 logger = logging.get_logger(__name__)
@@ -73,10 +74,14 @@ class LeRobotDataset(BaseLeRobotDataset):
         self,
         repo_id: str,
         load_image: bool = True,
+        video_decoder_cache_size: int = 32,
         **kwargs,
     ):
+        if video_decoder_cache_size < 1:
+            raise ValueError("video_decoder_cache_size must be positive")
         super().__init__(repo_id, **kwargs)
         self.load_image = load_image
+        self.video_decoder_cache_size = video_decoder_cache_size
 
     def _query_hf_dataset(self, query_indices: dict[str, list[int]]) -> dict:
         """
@@ -115,7 +120,13 @@ class LeRobotDataset(BaseLeRobotDataset):
                 query_ts = [from_timestamp + ts for ts in query_ts]
 
             video_path = self.root / self.meta.get_video_file_path(ep_idx, vid_key)
-            frames = decode_video_frames(video_path, query_ts, self.tolerance_s, self.video_backend)
+            if self.video_backend == 'torchcodec':
+                frames = decode_video_frames_bounded(
+                    video_path, query_ts, self.tolerance_s,
+                    capacity=self.video_decoder_cache_size,
+                )
+            else:
+                frames = decode_video_frames(video_path, query_ts, self.tolerance_s, self.video_backend)
             item[vid_key] = frames.squeeze(0)
 
         return item
@@ -213,6 +224,7 @@ class VLADataset(Dataset):
             delta_timestamps=merged_delta,
             load_image=load_image,
             video_backend=video_backend,
+            video_decoder_cache_size=getattr(dataset_config, "video_decoder_cache_size", 32),
         )
 
         self.return_item = return_item
