@@ -210,6 +210,7 @@ __marimo__/
 *log.txt
 ossutil_output/
 .sumi/
+.sii/
 env.sh
 pids_qwenpi.txt
 run.sh

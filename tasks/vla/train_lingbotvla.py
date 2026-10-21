@@ -29,7 +29,6 @@ from lingbotvla.optim import build_lr_scheduler, build_optimizer
 from lingbotvla.utils import helper
 from lingbotvla.utils.arguments import DataArguments, ModelArguments, TrainingArguments, parse_args, save_args
 from lingbotvla.utils.dist_utils import all_reduce
-from lingbotvla.utils.lora_utils import add_lora_to_model, freeze_parameters
 
 from lingbotvla.models.vla.vision_models.module_utils import build_depth_model, get_depth_target, log_depth
 
@@ -105,6 +104,9 @@ def main():
         config_kwargs=config_kwargs,
     )
     if args.train.use_lora:
+        # PEFT is optional for full fine-tuning; import it only for LoRA.
+        from lingbotvla.utils.lora_utils import add_lora_to_model, freeze_parameters
+
         supported_lora_modules = {"q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"}
         freeze_parameters(model)
         model = add_lora_to_model(

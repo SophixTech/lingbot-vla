@@ -89,9 +89,11 @@ def build_foundation_model(
     config.freeze_vision_encoder = freeze_vision_encoder
     config.tokenizer_max_length = tokenizer_max_length
     config.use_cache = False # drop kv cache during training
-    # Qwen2.5-VL in the pinned Transformers version does not register the
-    # custom ``flex`` backend. Keep the configured supported backend.
-    config.attention_implementation = attn_implementation
+    # Keep the HF/vision backend separate from our joint VLM/Action backend.
+    # Like lingbot-vla, FlashAttention2 for vision uses FlexAttention for the
+    # joint attention, whose custom rectangular label-K/V mask FA2 cannot take.
+    joint_attention = "flex" if attn_implementation == "flash_attention_2" else attn_implementation
+    config.attention_implementation = joint_attention
     config.action_dim = config_kwargs['action_dim']
     config.max_action_dim = config_kwargs['max_action_dim']
     config.max_state_dim = config_kwargs['max_state_dim']
@@ -105,7 +107,7 @@ def build_foundation_model(
     config.use_lm_head = use_lm_head
     
     config.attn_implementation = attn_implementation
-    config.attention_implementation = attn_implementation
+    config.attention_implementation = joint_attention
     config.adapt_to_pi_aloha = config_kwargs['adapt_to_pi_aloha']
     config.use_delta_joint_actions_aloha = config_kwargs['use_delta_joint_actions_aloha']
     config.train_expert_only = config_kwargs['train_expert_only']

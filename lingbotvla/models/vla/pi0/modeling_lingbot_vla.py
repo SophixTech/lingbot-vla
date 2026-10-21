@@ -1097,12 +1097,12 @@ class QwenvlWithExpertModel(PreTrainedModel):
         if self.config.vocab_size != 0 and self.config.vocab_size != 257152 and vlm_config.vocab_size != self.config.vocab_size:
             vlm_config.vocab_size = self.config.vocab_size
         
-        # The deployment loader intentionally selects eager attention for this
-        # checkout.  Do not force FlashAttention2 here: the old hard-coded
-        # ``use_flash_attention_2=True`` made every inference startup fail when
-        # the optional ``flash_attn`` package was absent, even though eager
-        # attention was already requested by the deployment config.
+        # Flex is our joint-attention backend, not a Transformers backend.
+        # Use FA2 in the vision tower, as in lingbot-vla. Explicit eager
+        # deployment remains available without the optional flash_attn package.
         attention_impl = getattr(self.config, "attention_implementation", "eager")
+        if attention_impl == "flex":
+            attention_impl = "flash_attention_2"
         if attention_impl in ("fa2", "flash_attention_2") and not is_flash_attn_available():
             logger.warning("FlashAttention2 requested but flash_attn is unavailable; falling back to eager attention")
             attention_impl = "eager"
@@ -1138,6 +1138,11 @@ class QwenvlWithExpertModel(PreTrainedModel):
         # Remove unused embed_tokens
         del self.qwen_expert.model.embed_tokens
         self.attention_interface = self.get_attention_interface()
+        logger.info(
+            "Attention backends: vision=%s, joint=%s",
+            self.qwenvl.visual.config._attn_implementation,
+            self.config.attention_implementation,
+        )
 
         # self.to_bfloat16_like_physical_intelligence()
         self.set_requires_grad()

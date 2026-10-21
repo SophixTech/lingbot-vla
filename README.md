@@ -2,6 +2,19 @@
 
 本分支新增标签条件通路：将 VLM 预测的 label 概率编码成 Action Expert 每层可读取的 K/V，让标签参与各层注意力计算。
 
+## 当前 LEMON 训练入口
+
+本次 8 卡 H200 训练使用 [configs/vla/package_multi_posttrain.yaml](configs/vla/package_multi_posttrain.yaml)。从本项目根目录启动，训练环境需能访问配置中的模型、数据、标注和归一化文件路径：
+
+```bash
+torchrun --standalone --nnodes=1 --nproc-per-node=8 \
+  tasks/vla/train_lingbotvla.py configs/vla/package_multi_posttrain.yaml
+```
+
+该配置仅使用有 ECOT 标注的训练 episode，启用辅助监督和预测标签 K/V；保留本次选定的训练超参数。下文 `ecot1003.yaml` 是原分支 LoRA 短测参考配置，历史验证结果不代表当前 8 卡配置已完成运行验证。
+
+已清理旧 mixed/separated 实验的 5 个训练 YAML、11 个启动/监控 shell 脚本及 5 个 systemd 服务/定时器文件；它们固定指向旧工程和实验输出。文件原版本保留在 Git 历史中。通用工具、评估脚本、测试和其余参考配置保留。
+
 ## 数据流
 
 1. 图像与固定 prompt 输入 VLM，生成图文前缀特征和各层 K/V 缓存。
