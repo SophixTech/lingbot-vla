@@ -149,6 +149,9 @@ class ModelArguments:
 
 @dataclass
 class DataArguments:
+    image_mask_enabled: bool = field(default=False)
+    image_mask_path: Optional[str] = field(default=None)
+    image_mask_camera: str = field(default="observation.images.cam_high_rgb")
     train_path: str = field(
         default="",
         metadata={"help": "Training root; for VLA a comma-separated list is also supported."},

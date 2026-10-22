@@ -130,7 +130,10 @@ class LingbotVLAServer:
         use_fp32=False,
         robot_norm_path: str = None,
         num_denoising_step=10,
-        use_compile=False
+        use_compile=False,
+        image_mask_enabled=None,
+        image_mask_path=None,
+        image_mask_camera=None,
     ) -> None:
         assert not (use_bf16 and use_fp32), 'Bfloat16 or Float32!!!'
         self.adaptive_ensemble_alpha = adaptive_ensemble_alpha
@@ -140,6 +143,9 @@ class LingbotVLAServer:
         self.num_denoising_step = num_denoising_step
 
         self.robot_norm_path = robot_norm_path
+        self.image_mask_overrides = dict(image_mask_enabled=image_mask_enabled,
+                                         image_mask_path=image_mask_path,
+                                         image_mask_camera=image_mask_camera)
         
         self.vla = self.load_vla(path_to_pi_model)
         self.vla = self.vla.eval()
@@ -185,6 +191,9 @@ class LingbotVLAServer:
         self.processor = build_processor(base_model_path)
         self.language_tokenizer = self.processor.tokenizer
         data_config = SimpleNamespace(**training_config['data'])
+        for key, value in self.image_mask_overrides.items():
+            if value is not None:
+                setattr(data_config, key, value)
         data_config.max_state_dim = config.max_state_dim
         data_config.max_action_dim = config.max_action_dim
         data_config.resize_imgs_with_padding = config.resize_imgs_with_padding
@@ -238,6 +247,8 @@ class LingbotVLAServer:
             assert image_feature in observation
             assert len(observation[image_feature].shape)==3 and observation[image_feature].shape[-1] == 3
             image = observation[image_feature]
+            image = self.vla.feature_transform.raw_image_mask.apply(
+                image, image_feature, channels_last=True)
             img_pil = Image.fromarray(image)
             image_size = getattr(self.data_config, 'img_size', 224)
             img_pil = img_pil.resize((image_size, image_size), Image.BILINEAR)
@@ -305,9 +316,16 @@ def main():
     parser.add_argument("--num_denoising_step", type=int, default=10, help="num of denoising step")
     parser.add_argument("--use_compile", action='store_true', help="use torch compile or not")
 
+    parser.add_argument('--image-mask-enabled', action=argparse.BooleanOptionalAction, default=None,
+                        help='Override checkpoint masking; --no-image-mask-enabled disables it')
+    parser.add_argument('--image-mask-path', default=None, help='Mask image or row-interval JSON')
+    parser.add_argument('--image-mask-camera', default=None, help='Raw camera feature to mask')
     args = parser.parse_args()
 
-    model = LingbotVLAServer(args.model_path, use_length=args.use_length, robot_norm_path=args.norm_path, num_denoising_step=args.num_denoising_step, use_compile=args.use_compile)
+    model = LingbotVLAServer(args.model_path, use_length=args.use_length, robot_norm_path=args.norm_path,
+                           num_denoising_step=args.num_denoising_step, use_compile=args.use_compile,
+                           image_mask_enabled=args.image_mask_enabled, image_mask_path=args.image_mask_path,
+                           image_mask_camera=args.image_mask_camera)
     model_server = WebsocketPolicyServer(model, port=args.port)
     model_server.serve_forever()
 

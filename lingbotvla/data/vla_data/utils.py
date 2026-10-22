@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from typing import List
 import ast
 import torch.nn.functional as F
+from .image_mask import RawImageMask
 
 from .transform import Normalizer, prepare_images, prepare_state, prepare_language, prepare_action, prepare_joint_pad
 
@@ -79,6 +80,10 @@ class FeatureTransform:
         self.images = target_features['images']
 
         self.org_features = org_features
+        self.raw_image_mask = RawImageMask(data_config) if load_image else None
+        if self.raw_image_mask is not None and self.raw_image_mask.enabled:
+            if self.raw_image_mask.camera not in org_features['images']:
+                raise ValueError(f'Mask camera {self.raw_image_mask.camera} is not in the robot image mapping')
         self.normalizer = self.get_normalizer(norm_stats_path, do_nomalize, data_config)
 
     def get_normalizer(self, norm_stats_path, do_nomalize, data_config):

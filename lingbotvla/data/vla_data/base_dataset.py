@@ -34,12 +34,10 @@ from .utils import FeatureTransform
 from .video_cache import decode_video_frames_bounded
 
 
-# Adapt branch-ecot's unified instruction to specify orientation before grasping.
+# Unified instruction for picking a soft package from the platform by its side.
 PACKAGE_TASK_PROMPT = (
-    "Take out the top soft package from the box. Based on its initial label "
-    "orientation in the box before grasping: if the label initially faces up, "
-    "place the package directly on the conveyor belt; if it initially faces down, "
-    "flip the package so the label faces up before placing it on the conveyor belt."
+    "Grasp a soft package from the side, lift it off the platform, "
+    "and place it on the conveyor belt."
 )
 
 
@@ -124,6 +122,9 @@ class LeRobotDataset(BaseLeRobotDataset):
         if self.image_transforms is not None and self.load_image:
             image_keys = self.meta.camera_keys
             for cam in image_keys:
+                raw_mask = getattr(self, 'raw_image_mask', None)
+                if raw_mask is not None:
+                    item[cam] = raw_mask.apply(item[cam], cam)
                 item[cam] = self.image_transforms(item[cam])
         # Add task as a string
         task_idx = item["task_index"].item()
@@ -208,6 +209,8 @@ class VLADataset(Dataset):
             if "load_image" not in str(exc):
                 raise
             self.dataset = LeRobotDataset(**dataset_kwargs, download_videos=load_image)
+
+        self.dataset.raw_image_mask = self.feature_transform.raw_image_mask
 
         if self.selected_episodes is None:
             # Full exports can exceed three-digit file numbering: lexical file

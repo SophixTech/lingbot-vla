@@ -15,6 +15,10 @@ data:
     - /home/bjtc/Sophix/datasets/marked_9_1_0922/train
     - /home/bjtc/Sophix/datasets/datav2_1015_split/train
   exclude_regrasp: false
+  # Applied before resize; deployment inherits these settings.
+  image_mask_enabled: false
+  image_mask_path: mask/data-v1/union_mask.png
+  image_mask_camera: observation.images.cam_high_rgb
   joints:
   - arm.position: 14
   - effector.position: 2
@@ -44,7 +48,7 @@ train:
   lr: 5.0e-05
   lr_decay_style: constant
   micro_batch_size: 32
-  gradient_accumulation_steps: 2
+  gradient_accumulation_steps: 1
   max_steps: 60000
   ckpt_manager: dcp
   save_steps: 10000
