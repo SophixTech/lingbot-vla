@@ -1,4 +1,5 @@
 import json
+import gc
 from copy import deepcopy
 import os
 import re
@@ -27,11 +28,14 @@ from lingbotvla.distributed.torch_parallelize import build_parallelize_model
 from lingbotvla.models import build_foundation_model, build_processor, save_model_assets, save_model_weights, build_tokenizer
 from lingbotvla.optim import build_lr_scheduler, build_optimizer
 from lingbotvla.utils import helper
+from lingbotvla.utils.step_diagnostics import StepDiagnostics
 from lingbotvla.utils.arguments import DataArguments, ModelArguments, TrainingArguments, parse_args, save_args
 from lingbotvla.utils.dist_utils import all_reduce
 
 from lingbotvla.models.vla.vision_models.module_utils import build_depth_model, get_depth_target, log_depth
 
+# Match the v2 training entry point: reduce automatic GC frequency.
+gc.set_threshold(50000, 50, 50)
 
 
 logger = helper.create_logger(__name__)
@@ -117,6 +121,10 @@ def main():
     helper.print_device_mem_info("VRAM usage after building model")
 
     logger.info_rank0("Prepare data")
+    logger.info_rank0(
+        f"Action supervision: {'right arm + right gripper only' if args.data.right_arm_loss_only else 'all valid action dimensions'} "
+        f"(data.right_arm_loss_only={args.data.right_arm_loss_only}); normalization and state inputs unchanged."
+    )
     processor = build_processor(args.model.tokenizer_path) # if use build_processor,  tokenizer is processor.tokenizer
 
     if args.train.rmpad:
@@ -309,6 +317,7 @@ def main():
     # create the path in advance to save loss log
     if args.train.global_rank == 0:
         os.makedirs(args.train.save_checkpoint_path, exist_ok=True)
+    step_diag = StepDiagnostics(args.train.output_dir, args.train.global_rank)
     reached_max_steps = False
     max_steps_driven = (args.train.max_steps is not None and
                         args.train.max_steps < args.train.train_steps * args.train.num_train_epochs)
@@ -334,12 +343,16 @@ def main():
         data_iterator = iter(train_dataloader)
         for _ in range(start_step, args.train.train_steps):
             global_step += 1
+            if step_diag.file is not None:
+                step_diag.begin(global_step)
             try:
                 micro_batches: List[Dict[str, Any]] = next(data_iterator)
             except StopIteration:
                 logger.info(f"epoch:{epoch} Dataloader finished with drop_last {args.data.drop_last}")
                 break
 
+            if step_diag.file is not None:
+                step_diag.mark("data_wait")
             total_loss = 0
             total_vla_loss = 0
             total_depth_loss = 0
@@ -347,6 +360,8 @@ def main():
             depth_preds = None
             torch.cuda.synchronize()
             start_time = time.time()
+            if step_diag.file is not None:
+                step_diag.mark("pre_step_sync_and_setup")
             for micro_batch in micro_batches:
                 dataset_names = micro_batch.pop('rep_id', None)
                 environ_meter.add(micro_batch)
@@ -355,12 +370,16 @@ def main():
                     k: v.cuda(non_blocking=True) if isinstance(v, torch.Tensor) else v for k, v in micro_batch.items()
                 }
                 
+                if step_diag.file is not None:
+                    step_diag.mark("batch_setup_h2d_enqueue")
                 if use_depth_align:
                     with torch.no_grad():
                         with torch.autocast("cuda", dtype=torch.bfloat16):
                             pil_images = micro_batch.pop('pil_images', None)
                             depth_targets, cls_token = get_depth_target(depth_model_type, (moge_model, morgbd_model), pil_images)
 
+                if step_diag.file is not None:
+                    step_diag.mark("teacher_forward_host")
                 with model_fwd_context:
                     # torch.cuda.synchronize()
                     loss, vla_loss, depth_loss, loss_log, depth_preds = model(**micro_batch, vlm_causal = args.train.vlm_causal, depth_targets=depth_targets)
@@ -370,14 +389,20 @@ def main():
                     vla_loss = vla_loss / len(micro_batches)
                     depth_loss = depth_loss / len(micro_batches)
 
+                if step_diag.file is not None:
+                    step_diag.mark("model_forward_host")
                 with model_bwd_context:
                     loss.backward()
 
+                if step_diag.file is not None:
+                    step_diag.mark("backward_host")
                 total_loss += loss.item()
                 total_vla_loss += vla_loss.item()
                 if not (isinstance(depth_loss, int) or isinstance(depth_loss, float)):
                     total_depth_loss += depth_loss.item()
                 del micro_batch
+                if step_diag.file is not None:
+                    step_diag.mark("loss_materialization")
             if global_step > args.train.stable_train_steps:
                 max_grad_norm = args.train.decayed_max_grad_norm
             else:
@@ -387,17 +412,35 @@ def main():
             else:
                 grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_grad_norm, foreach=True)
 
+            if step_diag.file is not None:
+                step_diag.mark("grad_clip_host")
             optimizer.step()
+            if step_diag.file is not None:
+                step_diag.mark("optimizer_step_host")
             lr_scheduler.step()
+            if step_diag.file is not None:
+                step_diag.mark("lr_scheduler_host")
             optimizer.zero_grad()
+            if step_diag.file is not None:
+                step_diag.mark("zero_grad_host")
             if hasattr(grad_norm, "full_tensor"):
-                grad_norm = grad_norm.full_tensor().item()
-
+                grad_norm = grad_norm.full_tensor()
+                if step_diag.file is not None:
+                    step_diag.mark("grad_norm_full_tensor_host")
+                grad_norm = grad_norm.item()
+                if step_diag.file is not None:
+                    step_diag.mark("grad_norm_item_host")
+            if step_diag.file is not None:
+                step_diag.mark("post_optimizer_setup")
             # collect mean loss across data parallel group
             total_loss, total_vla_loss, total_depth_loss, grad_norm = all_reduce((total_loss, total_vla_loss, total_depth_loss, grad_norm), group=get_parallel_state().fsdp_group)
             
+            if step_diag.file is not None:
+                step_diag.mark("loss_all_reduce_host")
             torch.cuda.synchronize()
             delta_time = time.time() - start_time
+            if step_diag.file is not None:
+                step_diag.mark("final_cuda_sync_host")
             lr = max(lr_scheduler.get_last_lr())
             data_loader_tqdm.update()
             logger.info_rank0(
@@ -490,12 +533,15 @@ def main():
                         save_args(args, hf_weights_path)
                         logger.info_rank0(f"Huggingface checkpoint saved at {hf_weights_path} successfully!")
 
+            if step_diag.file is not None:
+                step_diag.end(delta_time)
             # global max_steps early stop
             if args.train.max_steps is not None and global_step >= args.train.max_steps:
                 logger.info_rank0(f"Reached max_steps={args.train.max_steps}, stopping training.")
                 reached_max_steps = True
                 break
 
+        step_diag.flush()
         if not max_steps_driven:
             data_loader_tqdm.close()
         start_step = 0

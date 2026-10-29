@@ -149,6 +149,10 @@ class ModelArguments:
 
 @dataclass
 class DataArguments:
+    right_arm_loss_only: bool = field(
+        default=False,
+        metadata={"help": "package_a2d only: supervise right arm and right gripper actions; preserve full state/action layout and normalization."},
+    )
     image_mask_enabled: bool = field(default=False)
     image_mask_path: Optional[str] = field(default=None)
     image_mask_camera: str = field(default="observation.images.cam_high_rgb")

@@ -114,6 +114,7 @@ class VLADataCollatorWithPacking(DataCollator):
             "action_is_pad",
             "actions",
             "joint_mask",
+            "action_loss_mask",
             "label",
             "fast_mask"
         ],

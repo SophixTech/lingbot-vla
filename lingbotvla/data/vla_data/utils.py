@@ -58,6 +58,9 @@ class FeatureTransform:
             self.feature_config.update_info(data_config)
 
         self.data_config = data_config
+        if getattr(data_config, 'right_arm_loss_only', False):
+            if getattr(data_config, 'data_name', None) != 'package_a2d':
+                raise ValueError('right_arm_loss_only requires the package_a2d robot layout')
 
         self.tokenizer = tokenizer
         self.image_processor = image_processor
@@ -352,6 +355,24 @@ class FeatureTransform:
 
         return batch_dict
 
+    def action_loss_mask(self, item, joint_mask):
+        """Select right-side targets without changing structural/inference masks."""
+        expected_dims = {'arm.position': 14, 'effector.position': 2}
+        mask = torch.zeros_like(joint_mask, dtype=torch.bool)
+        offset = 0
+        for joint in self.feature_config.joints:
+            width = self.feature_config.joints_max_dim[joint]
+            if joint in expected_dims:
+                key = f'action.{joint}'
+                expected = expected_dims[joint]
+                if key not in item or item[key].shape[-1] != expected or width < expected:
+                    raise ValueError(f'right_arm_loss_only requires {key} with {expected} dimensions')
+                mask[offset + expected // 2:offset + expected] = True
+            offset += width
+        if offset > mask.numel() or not set(expected_dims).issubset(self.feature_config.joints):
+            raise ValueError('right_arm_loss_only requires both arm.position and effector.position within max_action_dim')
+        return mask & joint_mask
+
 
 
     def apply(self, item):
@@ -379,6 +400,9 @@ class FeatureTransform:
         state = prepare_state(batch_dict, self.data_config.max_state_dim) 
         actions = prepare_action(batch_dict, self.data_config.max_action_dim)
         joint_mask = prepare_joint_pad(batch_dict, self.data_config.max_action_dim)
+        action_loss_mask = None
+        if getattr(self.data_config, 'right_arm_loss_only', False):
+            action_loss_mask = self.action_loss_mask(item, joint_mask)
         images, img_masks, pil_images = prepare_images(self.image_processor, batch_dict, resize_imgs_with_padding=self.data_config.resize_imgs_with_padding, use_depth_align=self.use_depth_align, image_keys = self.feature_config.images)
         
         lang_tokens, lang_masks = prepare_language(self.tokenizer, batch_dict, self.data_config.tokenizer_max_length) 
@@ -395,6 +419,8 @@ class FeatureTransform:
                 'joint_mask': joint_mask,
             }
         if self.use_depth_align: batch_dict['pil_images'] = pil_images
+        if action_loss_mask is not None:
+            batch_dict['action_loss_mask'] = action_loss_mask
         return batch_dict
 
     def unapply(self, item):

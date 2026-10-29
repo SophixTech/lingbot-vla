@@ -222,3 +222,8 @@ eval.sh
 
 # Local trained model artifacts
 /trained-model/
+
+# Local IDE state and mask-generation intermediates (keep final deployment masks).
+/.sii/
+/mask/data-1023-1027/result/
+/mask/data-1023-1027/validation/

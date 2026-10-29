@@ -1,0 +1,163 @@
+{
+  "objective": "Keep green tabletop and conveyor surfaces across five datasets; robot/package pixels outside these fixed regions are intentionally blocked.",
+  "camera": "observation.images.cam_high_rgb",
+  "size": [
+    768,
+    480
+  ],
+  "samples": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/analysis/mask_optimization_20261028/samples.json",
+  "sample_frames": 225,
+  "dataset_sample_counts": {
+    "1023-data-v2-uppick": 45,
+    "1024-data-v3.2-uppick": 45,
+    "1026-data-v3.4-uppick-side": 45,
+    "1027-data-v3.4-uppick-side": 45,
+    "1028-data-v3.4-uppick-side": 45
+  },
+  "table_method": "manually reviewed tabletop outlines across representative views, union plus 8px margin; include package-occluded surface, do not use green color as per-pixel keep criterion",
+  "conveyor_method": "manually reviewed representative view polygons, union and 6px dilation",
+  "conveyor_polygons": {
+    "early_1023_1024_1026": [
+      [
+        0,
+        0
+      ],
+      [
+        160,
+        0
+      ],
+      [
+        335,
+        275
+      ],
+      [
+        340,
+        325
+      ],
+      [
+        0,
+        480
+      ]
+    ],
+    "later_1027_1028": [
+      [
+        0,
+        0
+      ],
+      [
+        65,
+        0
+      ],
+      [
+        290,
+        310
+      ],
+      [
+        290,
+        360
+      ],
+      [
+        145,
+        440
+      ],
+      [
+        0,
+        480
+      ]
+    ],
+    "raised_1028_ep74": [
+      [
+        0,
+        380
+      ],
+      [
+        80,
+        365
+      ],
+      [
+        290,
+        345
+      ],
+      [
+        355,
+        479
+      ],
+      [
+        0,
+        479
+      ]
+    ]
+  },
+  "table_polygons": {
+    "early_1023_1024_1026": [
+      [
+        350,
+        305
+      ],
+      [
+        594,
+        172
+      ],
+      [
+        767,
+        315
+      ],
+      [
+        628,
+        479
+      ],
+      [
+        452,
+        479
+      ]
+    ],
+    "later_1027_1028": [
+      [
+        300,
+        350
+      ],
+      [
+        532,
+        186
+      ],
+      [
+        700,
+        325
+      ],
+      [
+        620,
+        479
+      ],
+      [
+        400,
+        479
+      ]
+    ],
+    "late_1028": [
+      [
+        320,
+        355
+      ],
+      [
+        545,
+        214
+      ],
+      [
+        767,
+        334
+      ],
+      [
+        695,
+        479
+      ],
+      [
+        428,
+        479
+      ]
+    ]
+  },
+  "masked_fraction": 0.34347330729166664,
+  "validation": "All225sample frames processed through actual RawImageMask; PNG/JSON identical, retained pixels unchanged and masked pixels zero",
+  "limitations": "Shared fixed union includes extra background in some views; sampled geometry, not exhaustive semantic segmentation; raised-camera ep74 has table out of view and cannot be repaired by mask. No training benefit claim.",
+  "sha256": "bc8f810da85488a0821605919d8ab58e404e3652cea62a46c00fde841299b21f"
+}

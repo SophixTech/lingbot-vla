@@ -1414,25 +1414,40 @@ class LingbotVlaPolicy(PreTrainedPolicy):
         pass
     
     def forward(
-        self, images, img_masks, state, lang_tokens, lang_masks, actions, joint_mask=None, action_is_pad=None, label=None, noise=None, time=None, vlm_causal=False, depth_targets=None, norm_qkv=False
+        self, images, img_masks, state, lang_tokens, lang_masks, actions, joint_mask=None, action_is_pad=None, label=None, noise=None, time=None, vlm_causal=False, depth_targets=None, norm_qkv=False, action_loss_mask=None
     ) -> tuple[Tensor, dict[str, Tensor]]:
         loss_dict = {}
         losses, loss_depth, depth_preds = self.model.forward(
             images, img_masks, lang_tokens, lang_masks, state, actions, label, noise, time, vlm_causal, self.config.loss_type, depth_targets, norm_qkv
         )
 
-        batch_mean_losses = losses.mean(dim=(1, 2))
-        loss_dict["batch_mean_losses"] = batch_mean_losses.clone()
-
+        # Joint padding and episode-tail padding are independent. Normalize by
+        # valid scalar action targets, not the padded B x T x D tensor size.
         if joint_mask is not None:
-            losses = losses[joint_mask.unsqueeze(1).expand(-1, losses.size(1), -1)]
+            if joint_mask.shape != (losses.size(0), losses.size(2)):
+                raise ValueError("joint_mask must have shape (batch, action_dim)")
+            valid = joint_mask.to(device=losses.device, dtype=torch.bool).unsqueeze(1).expand_as(losses)
         else:
             assert self.config.action_dim is not None, f'action_dim must be specified in config, got None'
             losses = losses[:, :, :self.config.action_dim]
-        loss_dict["losses"] = losses.clone()
+            valid = torch.ones_like(losses, dtype=torch.bool)
+        if action_is_pad is not None:
+            if action_is_pad.shape != losses.shape[:2]:
+                raise ValueError("action_is_pad must have shape (batch, action_horizon)")
+            valid = valid & ~action_is_pad.to(device=losses.device, dtype=torch.bool).unsqueeze(-1)
 
-        # For backward pass
-        loss_vla = losses.mean()
+        if action_loss_mask is not None:
+            if action_loss_mask.shape != (losses.size(0), losses.size(2)):
+                raise ValueError('action_loss_mask must have shape (batch, action_dim)')
+            valid = valid & action_loss_mask.to(device=losses.device, dtype=torch.bool).unsqueeze(1)
+
+        masked_losses = losses.masked_fill(~valid, 0)
+        batch_mean_losses = masked_losses.sum(dim=(1, 2)) / valid.sum(dim=(1, 2)).clamp_min(1)
+        loss_dict["batch_mean_losses"] = batch_mean_losses.clone()
+        loss_dict["losses"] = losses[valid].clone()
+
+        # An entirely padded batch contributes a differentiable zero action loss.
+        loss_vla = masked_losses.sum() / valid.sum().clamp_min(1)
         # For logging
         loss_dict["l2_loss"] = loss_vla.item()
         if not isinstance(loss_depth, int):

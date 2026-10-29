@@ -1,0 +1,21 @@
+{
+  "method": "conservative expansion of old keep mask using exposure-compensated temporal RGB variation >100 union over sampled episodes; 8px motion margin, lower workspace and left conveyor protection, 21px morphological closing, internal hole filling and removal of small blocked fragments",
+  "datasets": [
+    "1023-data-v2-uppick",
+    "1024-data-v3.2-uppick",
+    "1026-data-v3.4-uppick-side",
+    "1027-data-v3.4-uppick-side",
+    "1028-data-v3.4-uppick-side"
+  ],
+  "episodes": 45,
+  "sample_frames": 225,
+  "samples": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/analysis/mask_optimization_20261028/samples.json",
+  "old_mask": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/lingbot-vla/mask/data-1023-1027/intersection_mask.png",
+  "old_masked_fraction": 0.3756781684027778,
+  "new_masked_fraction": 0.012345377604166667,
+  "old_keep_pixels_removed": 0,
+  "motion_proxy_pixels_removed": 0,
+  "limitations": "Sampled motion envelope is not semantic ground truth or an exhaustive all-frame guarantee. Fixed mask retains extra background to avoid clipping moving targets. No training performance evaluation.",
+  "validation": "PNG/JSON identical; training RawImageMask applied on all sampled frames, preserved pixels identical and blocked pixels zero",
+  "sha256": "7c9f41af866990bc821cd1adbeecc29852ca2e62f4632274ce94c2cfe843e296"
+}

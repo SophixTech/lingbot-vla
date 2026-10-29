@@ -8,6 +8,8 @@ model:
 data:
   datasets_type: vla
   data_name: package_a2d
+  # Supervise right arm/gripper by default; pass --data.right_arm_loss_only false for both sides.
+  right_arm_loss_only: true
   robot_config_root: configs/robot_configs
   # If the local 0922 file-002 episode ID is still corrupt, point this entry
   # at a repaired/verified rebuilt train directory before starting training.

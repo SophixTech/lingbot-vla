@@ -1,0 +1,711 @@
+{
+  "camera": "observation.images.cam_high_rgb",
+  "size": [
+    768,
+    480
+  ],
+  "selection": "sampled",
+  "samples": [
+    {
+      "id": "d00_f000",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-014.mp4",
+      "frame_index": 140,
+      "frame_count": 281
+    },
+    {
+      "id": "d00_f001",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-042.mp4",
+      "frame_index": 32,
+      "frame_count": 275
+    },
+    {
+      "id": "d00_f002",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-070.mp4",
+      "frame_index": 181,
+      "frame_count": 246
+    },
+    {
+      "id": "d00_f003",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-099.mp4",
+      "frame_index": 97,
+      "frame_count": 276
+    },
+    {
+      "id": "d00_f004",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-127.mp4",
+      "frame_index": 212,
+      "frame_count": 219
+    },
+    {
+      "id": "d00_f005",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-155.mp4",
+      "frame_index": 121,
+      "frame_count": 206
+    },
+    {
+      "id": "d00_f006",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-183.mp4",
+      "frame_index": 49,
+      "frame_count": 239
+    },
+    {
+      "id": "d00_f007",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-212.mp4",
+      "frame_index": 253,
+      "frame_count": 307
+    },
+    {
+      "id": "d00_f008",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-240.mp4",
+      "frame_index": 142,
+      "frame_count": 320
+    },
+    {
+      "id": "d00_f009",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-268.mp4",
+      "frame_index": 20,
+      "frame_count": 323
+    },
+    {
+      "id": "d00_f010",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-297.mp4",
+      "frame_index": 194,
+      "frame_count": 286
+    },
+    {
+      "id": "d00_f011",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-325.mp4",
+      "frame_index": 72,
+      "frame_count": 242
+    },
+    {
+      "id": "d00_f012",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-353.mp4",
+      "frame_index": 240,
+      "frame_count": 262
+    },
+    {
+      "id": "d00_f013",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-382.mp4",
+      "frame_index": 136,
+      "frame_count": 256
+    },
+    {
+      "id": "d00_f014",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-410.mp4",
+      "frame_index": 33,
+      "frame_count": 221
+    },
+    {
+      "id": "d00_f015",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-438.mp4",
+      "frame_index": 198,
+      "frame_count": 258
+    },
+    {
+      "id": "d00_f016",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-466.mp4",
+      "frame_index": 101,
+      "frame_count": 261
+    },
+    {
+      "id": "d00_f017",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-495.mp4",
+      "frame_index": 1,
+      "frame_count": 226
+    },
+    {
+      "id": "d00_f018",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-523.mp4",
+      "frame_index": 168,
+      "frame_count": 270
+    },
+    {
+      "id": "d00_f019",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1023-data-v2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-551.mp4",
+      "frame_index": 59,
+      "frame_count": 245
+    },
+    {
+      "id": "d01_f000",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-004.mp4",
+      "frame_index": 134,
+      "frame_count": 268
+    },
+    {
+      "id": "d01_f001",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-013.mp4",
+      "frame_index": 34,
+      "frame_count": 291
+    },
+    {
+      "id": "d01_f002",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-022.mp4",
+      "frame_index": 206,
+      "frame_count": 281
+    },
+    {
+      "id": "d01_f003",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-031.mp4",
+      "frame_index": 71,
+      "frame_count": 201
+    },
+    {
+      "id": "d01_f004",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-040.mp4",
+      "frame_index": 212,
+      "frame_count": 219
+    },
+    {
+      "id": "d01_f005",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-049.mp4",
+      "frame_index": 142,
+      "frame_count": 242
+    },
+    {
+      "id": "d01_f006",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-058.mp4",
+      "frame_index": 48,
+      "frame_count": 232
+    },
+    {
+      "id": "d01_f007",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-067.mp4",
+      "frame_index": 208,
+      "frame_count": 252
+    },
+    {
+      "id": "d01_f008",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-076.mp4",
+      "frame_index": 96,
+      "frame_count": 217
+    },
+    {
+      "id": "d01_f009",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-085.mp4",
+      "frame_index": 11,
+      "frame_count": 190
+    },
+    {
+      "id": "d01_f010",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-093.mp4",
+      "frame_index": 124,
+      "frame_count": 183
+    },
+    {
+      "id": "d01_f011",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-102.mp4",
+      "frame_index": 61,
+      "frame_count": 207
+    },
+    {
+      "id": "d01_f012",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-111.mp4",
+      "frame_index": 189,
+      "frame_count": 207
+    },
+    {
+      "id": "d01_f013",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-120.mp4",
+      "frame_index": 103,
+      "frame_count": 193
+    },
+    {
+      "id": "d01_f014",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-129.mp4",
+      "frame_index": 28,
+      "frame_count": 189
+    },
+    {
+      "id": "d01_f015",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-138.mp4",
+      "frame_index": 164,
+      "frame_count": 213
+    },
+    {
+      "id": "d01_f016",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-147.mp4",
+      "frame_index": 82,
+      "frame_count": 213
+    },
+    {
+      "id": "d01_f017",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-156.mp4",
+      "frame_index": 1,
+      "frame_count": 186
+    },
+    {
+      "id": "d01_f018",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-165.mp4",
+      "frame_index": 114,
+      "frame_count": 184
+    },
+    {
+      "id": "d01_f019",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1024-data-v3.2-uppick",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-174.mp4",
+      "frame_index": 40,
+      "frame_count": 167
+    },
+    {
+      "id": "d02_f000",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-001.mp4",
+      "frame_index": 177,
+      "frame_count": 355
+    },
+    {
+      "id": "d02_f001",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-003.mp4",
+      "frame_index": 35,
+      "frame_count": 300
+    },
+    {
+      "id": "d02_f002",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-006.mp4",
+      "frame_index": 223,
+      "frame_count": 303
+    },
+    {
+      "id": "d02_f003",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-008.mp4",
+      "frame_index": 121,
+      "frame_count": 344
+    },
+    {
+      "id": "d02_f004",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-010.mp4",
+      "frame_index": 355,
+      "frame_count": 366
+    },
+    {
+      "id": "d02_f005",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-013.mp4",
+      "frame_index": 191,
+      "frame_count": 325
+    },
+    {
+      "id": "d02_f006",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-015.mp4",
+      "frame_index": 60,
+      "frame_count": 289
+    },
+    {
+      "id": "d02_f007",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-018.mp4",
+      "frame_index": 251,
+      "frame_count": 304
+    },
+    {
+      "id": "d02_f008",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-020.mp4",
+      "frame_index": 134,
+      "frame_count": 302
+    },
+    {
+      "id": "d02_f009",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-022.mp4",
+      "frame_index": 16,
+      "frame_count": 264
+    },
+    {
+      "id": "d02_f010",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-025.mp4",
+      "frame_index": 155,
+      "frame_count": 229
+    },
+    {
+      "id": "d02_f011",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-027.mp4",
+      "frame_index": 81,
+      "frame_count": 273
+    },
+    {
+      "id": "d02_f012",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-030.mp4",
+      "frame_index": 301,
+      "frame_count": 329
+    },
+    {
+      "id": "d02_f013",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-032.mp4",
+      "frame_index": 233,
+      "frame_count": 436
+    },
+    {
+      "id": "d02_f014",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-034.mp4",
+      "frame_index": 52,
+      "frame_count": 345
+    },
+    {
+      "id": "d02_f015",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-037.mp4",
+      "frame_index": 368,
+      "frame_count": 478
+    },
+    {
+      "id": "d02_f016",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-039.mp4",
+      "frame_index": 155,
+      "frame_count": 401
+    },
+    {
+      "id": "d02_f017",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-042.mp4",
+      "frame_index": 2,
+      "frame_count": 398
+    },
+    {
+      "id": "d02_f018",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-044.mp4",
+      "frame_index": 184,
+      "frame_count": 296
+    },
+    {
+      "id": "d02_f019",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1025-data-v3.3-uppick-regrasp",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-046.mp4",
+      "frame_index": 66,
+      "frame_count": 273
+    },
+    {
+      "id": "d03_f000",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-009.mp4",
+      "frame_index": 322,
+      "frame_count": 645
+    },
+    {
+      "id": "d03_f001",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-027.mp4",
+      "frame_index": 66,
+      "frame_count": 560
+    },
+    {
+      "id": "d03_f002",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-045.mp4",
+      "frame_index": 417,
+      "frame_count": 567
+    },
+    {
+      "id": "d03_f003",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-063.mp4",
+      "frame_index": 192,
+      "frame_count": 544
+    },
+    {
+      "id": "d03_f004",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-081.mp4",
+      "frame_index": 547,
+      "frame_count": 563
+    },
+    {
+      "id": "d03_f005",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-099.mp4",
+      "frame_index": 348,
+      "frame_count": 591
+    },
+    {
+      "id": "d03_f006",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-117.mp4",
+      "frame_index": 142,
+      "frame_count": 684
+    },
+    {
+      "id": "d03_f007",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-136.mp4",
+      "frame_index": 473,
+      "frame_count": 573
+    },
+    {
+      "id": "d03_f008",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-154.mp4",
+      "frame_index": 258,
+      "frame_count": 582
+    },
+    {
+      "id": "d03_f009",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-172.mp4",
+      "frame_index": 30,
+      "frame_count": 488
+    },
+    {
+      "id": "d03_f010",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-190.mp4",
+      "frame_index": 309,
+      "frame_count": 455
+    },
+    {
+      "id": "d03_f011",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-208.mp4",
+      "frame_index": 111,
+      "frame_count": 375
+    },
+    {
+      "id": "d03_f012",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-226.mp4",
+      "frame_index": 241,
+      "frame_count": 264
+    },
+    {
+      "id": "d03_f013",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-245.mp4",
+      "frame_index": 260,
+      "frame_count": 487
+    },
+    {
+      "id": "d03_f014",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-263.mp4",
+      "frame_index": 44,
+      "frame_count": 294
+    },
+    {
+      "id": "d03_f015",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-281.mp4",
+      "frame_index": 570,
+      "frame_count": 741
+    },
+    {
+      "id": "d03_f016",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-299.mp4",
+      "frame_index": 296,
+      "frame_count": 762
+    },
+    {
+      "id": "d03_f017",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-317.mp4",
+      "frame_index": 3,
+      "frame_count": 608
+    },
+    {
+      "id": "d03_f018",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-335.mp4",
+      "frame_index": 418,
+      "frame_count": 670
+    },
+    {
+      "id": "d03_f019",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1026-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-353.mp4",
+      "frame_index": 159,
+      "frame_count": 658
+    },
+    {
+      "id": "d04_f000",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-006.mp4",
+      "frame_index": 319,
+      "frame_count": 639
+    },
+    {
+      "id": "d04_f001",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-020.mp4",
+      "frame_index": 76,
+      "frame_count": 651
+    },
+    {
+      "id": "d04_f002",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-034.mp4",
+      "frame_index": 493,
+      "frame_count": 670
+    },
+    {
+      "id": "d04_f003",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-047.mp4",
+      "frame_index": 203,
+      "frame_count": 575
+    },
+    {
+      "id": "d04_f004",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-061.mp4",
+      "frame_index": 568,
+      "frame_count": 585
+    },
+    {
+      "id": "d04_f005",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-075.mp4",
+      "frame_index": 352,
+      "frame_count": 598
+    },
+    {
+      "id": "d04_f006",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-088.mp4",
+      "frame_index": 116,
+      "frame_count": 559
+    },
+    {
+      "id": "d04_f007",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-102.mp4",
+      "frame_index": 440,
+      "frame_count": 533
+    },
+    {
+      "id": "d04_f008",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-116.mp4",
+      "frame_index": 292,
+      "frame_count": 658
+    },
+    {
+      "id": "d04_f009",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-129.mp4",
+      "frame_index": 40,
+      "frame_count": 643
+    },
+    {
+      "id": "d04_f010",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-143.mp4",
+      "frame_index": 395,
+      "frame_count": 581
+    },
+    {
+      "id": "d04_f011",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-156.mp4",
+      "frame_index": 177,
+      "frame_count": 594
+    },
+    {
+      "id": "d04_f012",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-170.mp4",
+      "frame_index": 631,
+      "frame_count": 689
+    },
+    {
+      "id": "d04_f013",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-184.mp4",
+      "frame_index": 308,
+      "frame_count": 577
+    },
+    {
+      "id": "d04_f014",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-197.mp4",
+      "frame_index": 103,
+      "frame_count": 679
+    },
+    {
+      "id": "d04_f015",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-211.mp4",
+      "frame_index": 453,
+      "frame_count": 589
+    },
+    {
+      "id": "d04_f016",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-225.mp4",
+      "frame_index": 230,
+      "frame_count": 593
+    },
+    {
+      "id": "d04_f017",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-238.mp4",
+      "frame_index": 3,
+      "frame_count": 542
+    },
+    {
+      "id": "d04_f018",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-252.mp4",
+      "frame_index": 374,
+      "frame_count": 600
+    },
+    {
+      "id": "d04_f019",
+      "dataset": "/inspire/ssd/project/multibodyrobot/zhuyuhuan-CZXS25150019/lemon/DATA/Dmetdata/1027-data-v3.4-uppick-side",
+      "video": "videos/observation.images.cam_high_rgb/chunk-000/file-266.mp4",
+      "frame_index": 147,
+      "frame_count": 609
+    }
+  ],
+  "storage": "source_video_references; extracted images removed"
+}

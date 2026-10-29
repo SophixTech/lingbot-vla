@@ -15,7 +15,6 @@ import sys
 
 import numpy as np
 import pyarrow.parquet as pq
-import yaml
 
 
 def episode_tables(root, exclude_regrasp=False):
@@ -70,7 +69,7 @@ def describe(values):
     }.items()}
 
 
-def compute(roots, horizon, exclude_regrasp):
+def compute(roots, horizon, exclude_regrasp, allow_duplicate_sources=False):
     episodes, provenance = [], []
     seen_sources = set()
     for root in roots:
@@ -81,7 +80,7 @@ def compute(roots, horizon, exclude_regrasp):
         for meta,table in episode_tables(root,exclude_regrasp):
             sid = source_ids.get(meta['episode_index'])
             if sid:
-                if sid in seen_sources:
+                if sid in seen_sources and not allow_duplicate_sources:
                     raise ValueError(f'Duplicate source episode across selected data: {sid}')
                 seen_sources.add(sid)
             episodes.append((numeric(table,'observation.state'),numeric(table,'action')))
@@ -104,6 +103,8 @@ def compute(roots, horizon, exclude_regrasp):
 
 
 def main():
+    import yaml
+
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--config',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
